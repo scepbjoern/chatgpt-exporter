@@ -17,7 +17,7 @@ test("local regeneration replaces unsafe HTML, restores MD, reports media and pr
     assert.match(readFileSync(html, "utf8"), /Assistant answer/); assert.ok(!readFileSync(html, "utf8").includes("https://example.invalid/old"));
     assert.ok(existsSync(md)); assert.deepEqual(readFileSync(record.path), raw);
     rmSync(join(record.baseDir, "files", record.fname, "Report # %.txt"));
-    assert.equal((await regenerateMarkdown(f.root, {}, () => {})).status, "partial");
+    {const r=await regenerateMarkdown(f.root, {}, () => {});assert.equal(r.status, "partial", JSON.stringify({r,root:f.root,records:collectLocalConversations(f.root)}));}
     writeFileSync(record.path, '{"broken":');
     assert.equal((await regenerateMarkdown(f.root, {}, () => {})).status, "partial");
   } finally { f.cleanup(); }
