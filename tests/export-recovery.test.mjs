@@ -166,3 +166,19 @@ test("a readable-view failure retains newly obtained raw JSON without claiming a
     assert.equal(saved.mapping.answer.message.content.parts[0], "Assistant answer");
   } finally { f.cleanup(); }
 });
+
+test("project-resource and GPT failures remain partial in the durable report even when chats succeed", async () => {
+  const f = fixture(); try {
+    f.state.projects = [{ gizmoId: "g-p-resource", name: "Resources", gizmo: { name: "Resources" }, files: [{ id: "file-project", name: "input.pdf" }], conversations: [] }];
+    const originalDownload = f.deps.downloadFile;
+    const report = await f.run({ gpts: true }, {
+      apiGetPublic: async () => { throw new Error("synthetic GPT inventory failure"); },
+      downloadFile: async (...args) => { if(args[4]) throw new Error("synthetic project resource failure"); return originalDownload(...args); },
+    });
+    assert.equal(report.succeeded, 1); assert.equal(report.failed, 0); assert.equal(report.status, "partial");
+    const disk = JSON.parse(readFileSync(join(f.root, "logs", `export-report-${report.runId}.json`)));
+    assert.ok(disk.errors.some(e => e.category === "project-resource"));
+    assert.ok(disk.errors.some(e => e.category === "gpt"));
+    assert.equal(collectLocalConversations(f.root).length, 1);
+  } finally { f.cleanup(); }
+});

@@ -835,7 +835,7 @@
   function completionResult(d, regeneration = false) {
     const issues = Array.isArray(d.errors) ? d.errors : [];
     const remaining = d.remaining ?? Math.max(0, (d.total || 0) - (d.processed || 0));
-    const incomplete = d.rateLimited || d.failed > 0 || d.failedFiles > 0 || issues.length > 0 || d.status === 'partial' || d.status === 'failed' || d.status === 'warning' || (!regeneration && d.deletionReconciliationComplete === false);
+    const incomplete = d.rateLimited || d.failed > 0 || d.failedFiles > 0 || issues.length > 0 || d.status === 'partial' || d.status === 'failed' || d.status === 'warning' || (!regeneration && d.deletionReconciliationComplete === false && d.status !== 'complete-within-requested-scope');
     let message = regeneration
       ? `${d.succeeded || 0} of ${d.total || 0} local conversation views regenerated (Markdown and HTML).`
       : `${d.succeeded || 0} new · ${d.updated || 0} updated · ${d.skipped || 0} resumed · ${d.failed || 0} failed.`;

@@ -95,3 +95,9 @@ test("early rate-limit/error events do not discard the final durable report", as
   assert.match(f.elements.get("result").textContent, /synthetic-final-report-folder/);
   assert.equal(f.elements.get("result").className, "result warning");
 });
+
+test("intentional absence of deletion inference does not mislabel an otherwise complete requested scope", async () => {
+  const f = await interfaceFixture({ total: 1, processed: 1, remaining: 0, succeeded: 1, failed: 0, errors: [], status: "complete-within-requested-scope", deletionReconciliationComplete: false, output: "synthetic-archive" });
+  assert.equal(f.elements.get("result").className, "result success");
+  assert.match(f.elements.get("result").textContent, /absence from the inventory is not proof of deletion/);
+});
