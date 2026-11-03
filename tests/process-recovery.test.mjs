@@ -40,8 +40,8 @@ test("two stale-lock reclaimers cannot both hold the archive lock", async () => 
     };
     const a = launch(), b = launch();
     const results = await Promise.all([a.ready, b.ready]);
-    assert.deepEqual(results.sort(), ["acquired", "denied"]);
-    for (const job of [a, b]) if (job.child.exitCode === null) job.child.stdin.end("release");
+    assert.deepEqual([...results].sort(), ["acquired", "denied"]);
+    for (const [index, job] of [a, b].entries()) if (results[index] === "acquired") job.child.stdin.end("release");
     assert.deepEqual((await Promise.all([a.exited, b.exited])).sort(), [0, 2]);
   } finally { for (const child of children) if (child.exitCode === null) child.kill(); f.cleanup(); }
 });
