@@ -35,7 +35,7 @@ export function fixture() {
       return { filename: "Report # %.txt" };
     },
   };
-  const run = (options = {}, extra = {}) => runExport("FAKE-TOKEN", root, 3, false, false, { identity, gpts: false, ...options }, () => {}, { ...deps, ...extra });
+  const run = async (options = {}, extra = {}) => { const report = await runExport("FAKE-TOKEN", root, 3, false, false, { identity, gpts: false, ...options }, () => {}, { ...deps, ...extra }); if(process.env.CI && report.status === "partial") console.log("SYNTHETIC_REPORT", JSON.stringify({errors:report.errors, output:report.output})); return report; };
   return { root, state, deps, run, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 }
 export function allFiles(root) {
