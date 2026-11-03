@@ -5,7 +5,7 @@ Review the repair diff, not the unchanged project as a new full audit or a compa
 ## Exact inputs
 
 - Baseline: `78efcdc396816997e843abbab58a966708b79dc9` from `moisescastellano/chatgpt-exporter`, descended from `ezwep/chatgpt-exporter`.
-- Repair code/test/workflow commit: `91a859d4178835c64308cf32198fad48dd632468` in `scepbjoern/chatgpt-exporter`, branch `repair/offline-preserving-export`.
+- Repair code/test/workflow commit: `a40e6cce9015656ed0370e52e4b4a0ced5478fad` in `scepbjoern/chatgpt-exporter`, branch `repair/offline-preserving-export`.
 - Additional delivery commits may update English review documentation only. Use the attached bundle's manifest to identify its exact source tree, ZIP/hash and diff endpoint. The executable code and tests must match the code commit above, unless that manifest explicitly reports a later code correction.
 - Read the supplied complete repaired source, baseline source context and binary/full-index diff. Read `TESTING.md`, `docs/test-audit.md`, `docs/reviews/repair-matrix.md`, `SECURITY.md`, `VENDOR.md` and the sanitized baseline `initial-review.md`/`second-ai-review.md`.
 - Use actual linked CI outcomes rather than assuming the configured workflow passed. Local results and CI are separate evidence.
