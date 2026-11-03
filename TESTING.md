@@ -1,5 +1,30 @@
 # Test record
 
+## Inventory pagination repair, 2026-11-03
+
+The current working tree adds advisory-total pagination: enumerate until an explicit
+`has_more: false` or an empty page, not until a changing `total` is reached. Missing
+optional totals are accepted. Numeric drift/count mismatches allow discovered chats
+to export but retain `partial` and `inventory.complete: false`. Invalid schemas,
+offsets, duplicate IDs and contradictory empty pages still block the conversation
+queue. Bounded page diagnostics contain counts only, not titles or credentials.
+
+The delegated implementation agent ran all **25 core test files** successfully on
+Windows / Node.js 24.11.0, including 16 new inventory cases. The coordinating agent
+reviewed the patch and reran the Chromium offline archive and local UI checks:
+both passed. No current macOS execution is claimed. The previous 93af5c3 macOS job
+ultimately cancelled with zero steps; its Windows job passed.
+
+An explicitly authorized local live trial reproduced the previous numeric-total
+abort. After the repair, pagination reached its empty terminal page and one selected
+conversation was saved as JSON, Markdown and HTML. All ten manifest entries matched.
+The report remained partial because totals changed. That trial had no attachments,
+does not establish account completeness or workspace isolation, and did not include
+a visual browser check of its private local HTML. Private data, paths and credentials
+are excluded from this repository. Live evidence is separate from synthetic tests.
+
+The sections below describe earlier commits and their own test scope.
+
 ## Post-review follow-up, 2026-11-03
 
 Exact executable code/test/workflow commit: `93af5c36b81a329d33aa675da656c06c603e01f6` (includes the disabled-view original-media follow-up to `a795d76`). All local results immediately below were rerun on that code. Later Markdown-only documentation changes do not change the tested executable tree.

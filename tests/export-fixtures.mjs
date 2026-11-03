@@ -22,7 +22,9 @@ export function fixture() {
       if (path.startsWith("conversations?")) {
         if (state.inventoryOverride) return state.inventoryOverride;
         const rows = path.includes("is_archived=true") ? state.archived : state.conversations;
-        return { total: rows.length, items: rows.map(c => ({ id: c.conversation_id, title: c.title, create_time: c.create_time, update_time: c.update_time })) };
+        const params = new URL(path, "https://synthetic.invalid/").searchParams;
+        const offset = Number(params.get("offset") || 0), limit = Number(params.get("limit") || 100);
+        return { total: rows.length, offset, items: rows.slice(offset, offset + limit).map(c => ({ id: c.conversation_id, title: c.title, create_time: c.create_time, update_time: c.update_time })) };
       }
       if (path.startsWith("gizmos/")) { const project = state.projects.find(p => path.includes(p.gizmoId)); return { items: project.conversations || [] }; }
       const id = path.split("/").pop();
