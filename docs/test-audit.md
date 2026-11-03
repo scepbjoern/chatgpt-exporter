@@ -56,3 +56,7 @@ npm run test:browser
 Browser automation requires the pinned development dependency and its installed browser. A local Windows Chromium pass does not establish macOS/Safari, Firefox or every `file://`/CSP behavior. Platform CI results and manual checks must be recorded separately. A configured workflow is not a successful CI run.
 
 Still outside these synthetic results: authentic Business workspace routing and inventory comparison; real account coverage; all historical sandbox versions; GPT Knowledge and shared projects; power-loss durability; hardware/disk exhaustion; every Windows path-length/filesystem variant; and an independent external review of the final repair diff. No release or deployment approval follows merely from these tests passing.
+
+## Final reconciliation
+
+The delivered record is in `TESTING.md`: 22 files locally, with actual browser commands recorded separately. The peer-review defects described above were corrected and have targeted regressions. Subsequent CI additionally exposed Windows removal postconditions/fault-injection assumptions and a macOS test pipe race. Canonical native paths, bigint identities, checked direct artifact removal, verified missing-file injection and release-only-to-holder coordination address those observations. A readable-view failure also now retains newly captured valid raw data as explicitly unpublished data rather than discarding it. This is still synthetic evidence and internal AI collaboration, not external approval.

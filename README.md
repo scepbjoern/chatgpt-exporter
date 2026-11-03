@@ -2,7 +2,7 @@
 
 A source-only fork for saving the ChatGPT conversation data the service actually returns as raw JSON, Markdown and a self-contained offline HTML folder. Start the exporter locally, complete a run, stop it, then open the archive's `index.html` by double-clicking. The viewer has navigation and **title search**, not full-text search.
 
-**Review status:** repairs are implemented and synthetic checks are being recorded in [TESTING.md](TESTING.md). A targeted additional external AI review is pending. No real-account export, complete Business workspace backup, professional security audit or production release is claimed. Check the exact repair commit and CI results before testing. Do not use upstream executables/npm packages as builds of this fork.
+**Review status:** repairs are implemented and synthetic checks are being recorded in [TESTING.md](TESTING.md). A [targeted additional external AI review](docs/reviews/opus-review-request.md) is pending. No real-account export, complete Business workspace backup, professional security audit or production release is claimed. Check the exact repair commit and CI results before testing. Do not use upstream executables/npm packages as builds of this fork.
 
 ## Origin and changes
 
@@ -42,7 +42,7 @@ An old unbound export is deliberately not adopted as the same account automatica
 
 Read the final on-screen status and the matching `logs/export-report-<runId>.json` or `regeneration-report-<runId>.json`. A partial status is not completion, even if some conversations succeeded. `archive-operation.json` marks an operation in progress or its final status. A stopped process can leave a stale manifest; rerun to recover before treating it as current.
 
-Updates are staged; replaced targets and retired source artifacts remain under `superseded/` with journals. A locked next run rolls back uncommitted publication or completes committed retirement. This is recoverability across process interruption, **not simultaneous multi-file atomicity or a guarantee against power failure, disk corruption/full disks or other programs modifying the archive**. Never manually remove a lock while a writer is active. No automatic retention/pruning occurs: previous generations consume disk space. Preserve a separate backup before cleanup.
+Updates are staged; replaced targets and retired source artifacts remain under `superseded/` with journals. If a later step fails after valid raw data was obtained, `retainedUnpublishedRaw` in the report identifies a retained raw copy under `superseded/unpublished-<runId>/`; it is not a completed generation or a resume key. A locked next run rolls back uncommitted publication or completes committed retirement. This is recoverability across process interruption, **not simultaneous multi-file atomicity or a guarantee against power failure, disk corruption/full disks or other programs modifying the archive**. Never manually remove a lock while a writer is active. A `.export-lock.guard` left by an interruption during lock acquisition requires inspection; it is not automatically removed. No automatic retention/pruning occurs: previous generations consume disk space. Preserve a separate backup before cleanup.
 
 A conversation absent from the current inventory stays at its prior location and generates a warning; it is not automatically marked deleted. Existing `deleted/` folders remain readable. A schema/page error prevents a clean completion. Re-run later after a 429; saved bytes remain available and incomplete files are retried.
 
