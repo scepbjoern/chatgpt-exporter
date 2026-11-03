@@ -1,0 +1,101 @@
+// Synthetic file:// integration check. Run separately after installing Playwright Chromium.
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { crc32, deflateSync } from "node:zlib";
+import { chromium, firefox, webkit } from "playwright";
+import { conversationToHtml } from "../lib/html-renderer.js";
+import { generateExportIndex } from "../lib/export-index.js";
+
+const archive = mkdtempSync(join(tmpdir(), "exporter offline Über #%-"));
+const engine = process.env.CGE_BROWSER_ENGINE || "chromium";
+const channel = process.env.CGE_BROWSER_CHANNEL;
+assert.ok(["chromium", "firefox", "webkit"].includes(engine), "Unknown CGE_BROWSER_ENGINE");
+const browser = await ({ chromium, firefox, webkit })[engine].launch(channel ? { channel } : {});
+try {
+  for (const subdir of ["html", "files", "archived/html", "deleted/html", "projects/Project_stable/html", "projects/Project_stable/resources"]) {
+    mkdirSync(join(archive, subdir), { recursive: true });
+  }
+  const title = "Überblick Q&A — 100% #1";
+  const attack = '<img src="https://example.invalid/automatic" onerror="window.ATTACK=true"><svg onload="window.ATTACK=true"></svg>';
+  const convo = {
+    title, conversation_id: "synthetic-browser", create_time: 1700000000,
+    mapping: {
+      user: { parent: null, children: ["assistant"], message: { author: { role: "user" }, content: { content_type: "text", parts: ["Synthetic user"] } } },
+      assistant: { parent: "user", children: ["tool"], message: { author: { role: "assistant" }, content: { content_type: "text", parts: [`**Assistant readable**\n\n${attack}\n\n[x](javascript:alert%281%29)\n\n![remote](https://example.invalid/image.png)\n\n![Local](../files/Über%20%23%25.png)\n\n[Explicit external](https://example.invalid/click)`] } } },
+      tool: { parent: "assistant", children: [], message: { author: { role: "tool" }, content: { content_type: "execution_output", parts: ["Tool readable\n" + attack] } } },
+    },
+  };
+  const pngChunk = (type, data) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const ihdr = Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]);
+  writeFileSync(join(archive, "files/Über #%.png"), Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", deflateSync(Buffer.from([0, 255, 0, 0, 255]))), pngChunk("IEND", Buffer.alloc(0)),
+  ]));
+  writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%.png" }));
+  writeFileSync(join(archive, "html/second.html"), conversationToHtml({ ...convo, title: "Other title" }));
+  writeFileSync(join(archive, "archived/html/archived.html"), conversationToHtml({ ...convo, title: "Archived fixture" }));
+  writeFileSync(join(archive, "deleted/html/deleted.html"), conversationToHtml({ ...convo, title: "Deleted fixture" }));
+  writeFileSync(join(archive, "projects/Project_stable/project-info.md"), "# Project\n\n**Instructions readable**\n\n" + attack);
+  generateExportIndex(archive, [{ name: "Project Q&A", folderName: "Project_stable" }]);
+
+  // Playwright WebKit's offline emulation rejects even a trivial file: page.
+  // Block HTTP(S) routes there instead; every attempted non-file request fails this test.
+  const context = await browser.newContext({ offline: engine !== "webkit" });
+  await context.route(/^https?:\/\//i, route => route.abort());
+  const requests = [];
+  const errors = [];
+  const browserErrors = [];
+  context.on("request", (request) => requests.push(request.url()));
+  const page = await context.newPage();
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
+  await page.goto(pathToFileURL(join(archive, "index.html")).href);
+  await page.getByRole("textbox", { name: "Search conversation titles" }).fill("Q&A");
+  assert.equal(await page.getByRole("link", { name: "Other title", exact: true }).isVisible(), false);
+  const selected = page.getByRole("link", { name: title, exact: true });
+  assert.equal(await selected.isVisible(), true);
+  await selected.click();
+  let frame = page.frameLocator("#frame");
+  await frame.getByText("Assistant readable", { exact: true }).waitFor();
+  await frame.getByText("Output", { exact: true }).click();
+  await frame.getByText("Tool readable", { exact: false }).waitFor();
+  assert.equal(await frame.locator("body").evaluate(() => window.ATTACK), undefined);
+  assert.equal(await frame.locator('a[href^="javascript:"]').count(), 0);
+  assert.equal(await frame.locator('img[src^="http"]').count(), 0);
+  const localImage = frame.getByAltText("Local");
+  await localImage.scrollIntoViewIfNeeded();
+  await localImage.evaluate((image) => image.complete ? Promise.resolve() : new Promise((resolve) => {
+    image.addEventListener("load", resolve, { once: true });
+    image.addEventListener("error", resolve, { once: true });
+  }));
+  assert.equal(await localImage.evaluate((image) => image.complete && image.naturalWidth > 0), true, JSON.stringify(browserErrors));
+  assert.equal(await frame.getByRole("link", { name: "Explicit external" }).getAttribute("target"), "_blank");
+
+  await page.reload();
+  await page.frameLocator("#frame").getByText("Assistant readable", { exact: true }).waitFor();
+  await page.getByRole("textbox", { name: "Search conversation titles" }).fill("");
+  await page.getByRole("button", { name: /Project Q&A/ }).click();
+  await page.getByRole("link", { name: /Project info/ }).click();
+  await page.frameLocator("#frame").getByText("Instructions readable", { exact: true }).waitFor();
+  for (const name of ["Archived fixture", "Deleted fixture"]) {
+    await page.getByRole("link", { name, exact: true }).click();
+    await page.frameLocator("#frame").getByRole("heading", { name, exact: true }).waitFor();
+  }
+  assert.deepEqual(requests.filter((url) => !url.startsWith("file:") && url !== "about:blank"), []);
+  assert.deepEqual(errors, []);
+  console.log(JSON.stringify({ result: "passed", engine, channel: channel || "bundled", browser: await browser.version(), platform: process.platform, networkIsolation: engine === "webkit" ? "HTTP(S) blocked; WebKit offline emulation also rejects file pages" : "offline emulation and HTTP(S) blocked", checks: ["file URL with special characters", "offline assistant/tool content", "inert attack markers", "no automatic network requests", "local raster image", "title search", "hash reload", "project info", "archived/deleted navigation"] }, null, 2));
+  await context.close();
+} finally {
+  await browser.close();
+  rmSync(archive, { recursive: true, force: true });
+}

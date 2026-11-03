@@ -205,58 +205,58 @@
 <body>
 
 <!-- Folder picker modal -->
-<div class="fp-overlay" id="fp-overlay" onclick="if(event.target===this)fpClose()">
+<div class="fp-overlay" id="fp-overlay" data-handler-0="">
   <div class="fp-modal">
     <div class="fp-header">
       <h3>📁 Choose folder</h3>
-      <button class="fp-btn-cancel" onclick="fpClose()" style="width:auto;padding:4px 10px;font-size:12px">✕</button>
+      <button class="fp-btn-cancel" data-handler-1="" style="width:auto;padding:4px 10px;font-size:12px">✕</button>
     </div>
     <div class="fp-path" id="fp-path"></div>
     <div class="fp-list" id="fp-list"></div>
     <div class="fp-new-row" id="fp-new-row">
-      <input id="fp-new-input" type="text" placeholder="New folder name…" onkeydown="if(event.key==='Enter')fpCreateFolder();if(event.key==='Escape')fpToggleNew(false)">
-      <button class="fp-btn-select" onclick="fpCreateFolder()">Create</button>
-      <button class="fp-btn-cancel" onclick="fpToggleNew(false)">✕</button>
+      <input id="fp-new-input" type="text" placeholder="New folder name…" data-handler-2="">
+      <button class="fp-btn-select" data-handler-3="">Create</button>
+      <button class="fp-btn-cancel" data-handler-4="">✕</button>
     </div>
     <div class="fp-footer">
-      <button class="fp-btn-new" onclick="fpToggleNew(true)">📁+ New folder</button>
-      <button class="fp-btn-cancel" onclick="fpClose()" style="margin-left:auto">Cancel</button>
-      <button class="fp-btn-select" onclick="fpSelect()">Select this folder</button>
+      <button class="fp-btn-new" data-handler-5="">📁+ New folder</button>
+      <button class="fp-btn-cancel" data-handler-6="" style="margin-left:auto">Cancel</button>
+      <button class="fp-btn-select" data-handler-7="">Select this folder</button>
     </div>
   </div>
 </div>
 
 <!-- Project picker modal -->
-<div class="fp-overlay" id="project-overlay" onclick="if(event.target===this)projectClose()">
+<div class="fp-overlay" id="project-overlay" data-handler-8="">
   <div class="fp-modal">
     <div class="fp-header">
       <h3>Choose Projects</h3>
-      <button class="fp-btn-cancel" onclick="projectClose()" style="width:auto;padding:4px 10px;font-size:12px">✕</button>
+      <button class="fp-btn-cancel" data-handler-9="" style="width:auto;padding:4px 10px;font-size:12px">✕</button>
     </div>
     <div class="project-picker-actions">
-      <button type="button" onclick="projectSelectAll()">Select all</button>
-      <button type="button" onclick="projectClearAll()">Clear all</button>
+      <button type="button" data-handler-10="">Select all</button>
+      <button type="button" data-handler-11="">Clear all</button>
       <span id="project-picker-count" class="project-selection-summary" style="margin-left:auto;align-self:center"></span>
     </div>
     <div class="fp-list" id="project-list">
       <div class="project-picker-status">Load Projects to choose which ones to export.</div>
     </div>
     <div class="fp-footer">
-      <button class="fp-btn-cancel" onclick="projectClose()">Cancel</button>
-      <button class="fp-btn-select" id="project-apply-btn" onclick="projectApplySelection()">Apply</button>
+      <button class="fp-btn-cancel" data-handler-12="">Cancel</button>
+      <button class="fp-btn-select" id="project-apply-btn" data-handler-13="">Apply</button>
     </div>
   </div>
 </div>
 
 <div class="card">
   <h1>ChatGPT Exporter</h1>
-  <p class="subtitle">Export all your conversations as JSON, Markdown &amp; HTML — with resume &amp; projects support</p>
+  <p class="subtitle">Save conversations as JSON, Markdown &amp; offline HTML</p>
 
   <div id="steps">
     <div class="step">
       <div class="step-num" id="step1-num">1</div>
       <div class="step-text">
-        Open <a href="https://chatgpt.com/api/auth/session" target="_blank">chatgpt.com/api/auth/session</a> in a new tab.<br>
+        Open <a href="https://chatgpt.com/api/auth/session" target="_blank" rel="noopener noreferrer">chatgpt.com/api/auth/session</a> in a new tab.<br>
         <span style="color:#94a3b8">(If you see a login page, log in first, then open the link again.)</span>
       </div>
     </div>
@@ -272,26 +272,28 @@
   <textarea id="token-input" placeholder='Paste the session JSON here — it looks like {"user":{...},"accessToken":"eyJhbG..."}'></textarea>
 
   <div class="field">
+    <label for="workspace-id">ChatGPT workspace/account ID</label>
+    <input type="text" id="workspace-id" autocomplete="off" placeholder="Explicit workspace ID">
+    <div class="options-hint">Use the ID for the selected ChatGPT workspace. The export folder is bound to this ID and the session user. Verify the returned inventory before using real archives; routing has not been validated against a real Business account.</div>
+  </div>
+  <div class="field">
     <label for="output-dir">Output folder</label>
     <div class="field-row">
       <input type="text" id="output-dir" placeholder="Loading...">
-      <button class="btn-browse" onclick="pickFolder()">📁 Browse</button>
+      <button class="btn-browse" data-handler-14="">📁 Browse</button>
     </div>
   </div>
 
   <div class="field" style="margin-bottom:16px">
-    <label for="concurrency">Parallel downloads</label>
-    <select id="concurrency" style="width:100%;background:#0f172a;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;margin-top:0">
-      <option value="1">1 — slow</option>
-      <option value="3">3 — normal</option>
-      <option value="5" selected>5 — fast (default)</option>
-      <option value="8">8 — aggressive</option>
-      <option value="10">10 — maximum</option>
+    <label for="concurrency">Download pace</label>
+    <select id="concurrency" disabled style="width:100%;background:#0f172a;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;margin-top:0">
+      <option value="1" selected>One file at a time</option>
     </select>
+    <div class="options-hint">Downloads run one at a time to keep memory use bounded.</div>
   </div>
 
   <div class="options-section">
-    <div class="options-header" onclick="toggleOptions(this)">
+    <div class="options-header" data-handler-15="">
       <span class="options-arrow">▸</span>
       <span>Export options</span>
     </div>
@@ -301,9 +303,9 @@
         <div class="opt-checks">
           <label class="opt-check"><input type="checkbox" id="opt-conversations" checked> Conversations</label>
           <div class="project-export-row">
-            <label class="opt-check"><input type="checkbox" id="opt-projects" checked onchange="syncProjectChooserState()"> Projects</label>
+            <label class="opt-check"><input type="checkbox" id="opt-projects" checked data-handler-16=""> Projects</label>
             <span id="project-selection-summary" class="project-selection-summary">All</span>
-            <button type="button" id="project-choose-btn" class="project-choose-btn" onclick="openProjectPicker(event)">Choose...</button>
+            <button type="button" id="project-choose-btn" class="project-choose-btn" data-handler-17="">Choose...</button>
           </div>
           <label class="opt-check"><input type="checkbox" id="opt-gpts" checked> GPTs</label>
         </div>
@@ -311,7 +313,7 @@
       <div class="options-group">
         <div class="options-group-label">File formats</div>
         <div class="opt-checks">
-          <label class="opt-check"><input type="checkbox" id="opt-json" checked> JSON</label>
+          <label class="opt-check"><input type="checkbox" id="opt-json" checked disabled> JSON</label>
           <label class="opt-check"><input type="checkbox" id="opt-markdown" checked> Markdown</label>
           <label class="opt-check"><input type="checkbox" id="opt-html" checked> HTML</label>
         </div>
@@ -369,25 +371,19 @@
       <div class="options-group">
         <div class="toggle-row" style="margin:0">
           <label class="toggle">
-            <input type="checkbox" id="keep-awake" checked>
+            <input type="checkbox" id="keep-awake">
             <span class="slider"></span>
           </label>
           <span class="toggle-label">Keep computer awake during export</span>
         </div>
-        <div class="toggle-row" style="margin-top:10px">
-          <label class="toggle">
-            <input type="checkbox" id="create-zip">
-            <span class="slider"></span>
-          </label>
-          <span class="toggle-label">Create ZIP archive</span>
-        </div>
+        <div class="options-hint">After completion, use Finder or Explorer to ZIP the finished folder.</div>
       </div>
     </div>
   </div>
 
-  <button id="export-btn" onclick="startExport()">Export conversations</button>
-  <button id="regenerate-md-btn" class="secondary-action" onclick="regenerateMarkdown()">Regenerate Markdown</button>
-  <div class="action-hint">Uses existing local JSON files. No ChatGPT requests are made.</div>
+  <button id="export-btn" data-handler-18="">Export conversations</button>
+  <button id="regenerate-md-btn" class="secondary-action" data-handler-19="">Regenerate local views</button>
+  <div class="action-hint">Rebuilds Markdown, HTML and the index from existing local JSON. No ChatGPT requests are made.</div>
 
   <div id="progress-section" class="progress-section hidden">
     <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
@@ -400,6 +396,53 @@
 </div>
 
 <script>
+  (() => {
+  const launchKey = new URLSearchParams(location.hash.slice(1)).get('key') || '';
+  history.replaceState(null, '', location.pathname);
+  let cachedSession = null;
+  let credentialExpiry = null;
+  let busy = false;
+  const nativeFetch = window.fetch.bind(window);
+  const apiFetch = (url, options = {}) => nativeFetch(url, {
+    ...options,
+    cache: 'no-store',
+    credentials: 'omit',
+    headers: { ...options.headers, 'X-CGE-Key': launchKey },
+  });
+
+  // Fetch-stream SSE supports an authentication header; EventSource does not.
+  function openProgress(exportId) {
+    const controller = new AbortController();
+    const handlers = new Map();
+    const stream = {
+      onerror: null,
+      addEventListener(type, callback) { handlers.set(type, callback); },
+      close() { controller.abort(); },
+    };
+    (async () => {
+      const response = await apiFetch('/progress/' + encodeURIComponent(exportId), { signal: controller.signal });
+      if (!response.ok) throw new Error('Could not open protected progress stream');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        let boundary;
+        while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+          const frame = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          const type = frame.match(/^event: (.+)$/m)?.[1];
+          const data = frame.match(/^data: (.*)$/m)?.[1];
+          if (type && data !== undefined) handlers.get(type)?.({ data: JSON.parse(data) });
+        }
+        if (done) break;
+      }
+      if (!controller.signal.aborted) stream.onerror?.();
+    })().catch(error => { if (error.name !== 'AbortError') stream.onerror?.(error); });
+    return stream;
+  }
+
   const isMac = navigator.platform.toUpperCase().includes('MAC');
   if (!isMac) {
     document.querySelectorAll('kbd').forEach(el => {
@@ -452,7 +495,7 @@
     document.getElementById('fp-path').textContent = path;
     document.getElementById('fp-list').innerHTML = '<div class="fp-empty">Loading…</div>';
     _fpCurrentPath = path;
-    const resp = await fetch('/list-dir?path=' + encodeURIComponent(path)).catch(() => null);
+    const resp = await apiFetch('/list-dir?path=' + encodeURIComponent(path)).catch(() => null);
     if (!resp || !resp.ok) {
       document.getElementById('fp-list').innerHTML = '<div class="fp-empty">Could not read directory.</div>';
       return;
@@ -466,7 +509,7 @@
       drives.forEach(d => {
         const el = document.createElement('div');
         el.className = 'fp-item';
-        el.innerHTML = `<span class="fp-item-icon">💾</span>${d.name}`;
+        el.textContent = '💾 ' + d.name;
         el.onclick = () => fpNavigate(d.path);
         list.appendChild(el);
       });
@@ -493,7 +536,7 @@
     dirs.forEach(d => {
       const el = document.createElement('div');
       el.className = 'fp-item';
-      el.innerHTML = `<span class="fp-item-icon">📁</span>${d.name}`;
+      el.textContent = '📁 ' + d.name;
       el.onclick = () => fpNavigate(d.path);
       list.appendChild(el);
     });
@@ -530,7 +573,7 @@
     const name = document.getElementById('fp-new-input').value.trim();
     if (!name) return;
     const newPath = _fpCurrentPath.replace(/[\\/]$/, '') + (_fpCurrentPath.includes('\\') ? '\\' : '/') + name;
-    const resp = await fetch('/create-dir', {
+    const resp = await apiFetch('/create-dir', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: newPath }),
@@ -547,13 +590,13 @@
 
   // Load platform config and restore saved values
   let _defaultDir = '';
-  fetch('/config').then(r => r.json()).then(cfg => {
+  apiFetch('/config').then(r => { if (!r.ok) throw new Error('Open the complete private launch URL printed in the terminal.'); return r.json(); }).then(cfg => {
     _defaultDir = cfg.defaultDir;
     const saved = loadPrefs();
     const dirField = document.getElementById('output-dir');
     dirField.value       = saved.outputDir || cfg.defaultDir;
     dirField.placeholder = cfg.defaultDir;
-    if (saved.concurrency)             document.getElementById('concurrency').value  = saved.concurrency;
+    document.getElementById('concurrency').value = '1';
     if (saved.keepAwake !== undefined) document.getElementById('keep-awake').checked = saved.keepAwake;
 
     const markdown = saved.markdown || {};
@@ -581,7 +624,7 @@
     if (markdown.assistantLabel) {
       document.getElementById('md-assistant-label').value = markdown.assistantLabel;
     }
-  });
+  }).catch(error => showResult('error', error.message));
 
   // ── Optional Project selection ────────────────────────────────────
   // null means "all Projects". The choice is intentionally not persisted in
@@ -591,18 +634,32 @@
   let _projectDraftIds = new Set();
   let _projectsLoaded = false;
 
-  function parseSessionToken() {
-    const raw = document.getElementById('token-input').value.trim();
-    if (!raw) throw new Error('Paste the session JSON first.');
-    let parsed;
-    try { parsed = JSON.parse(raw); }
-    catch { throw new Error('Invalid session JSON. Copy the entire /api/auth/session page.'); }
-    if (!parsed.accessToken) throw new Error('No "accessToken" found in the session JSON.');
-    return parsed.accessToken;
+  function readSession() {
+    const field = document.getElementById('token-input');
+    const raw = field.value.trim();
+    field.value = '';
+    if (raw) {
+      cachedSession = null;
+      let parsed;
+      try { parsed = JSON.parse(raw); }
+      catch { throw new Error('Invalid session JSON. Copy the entire /api/auth/session page.'); }
+      if (typeof parsed.accessToken !== 'string' || !parsed.accessToken) throw new Error('No accessToken found.');
+      if (typeof parsed.user?.id !== 'string' || !parsed.user.id) throw new Error('Session user ID is required.');
+      cachedSession = { token: parsed.accessToken, userId: parsed.user.id };
+      clearTimeout(credentialExpiry);
+      credentialExpiry = setTimeout(() => { cachedSession = null; }, 5 * 60 * 1000);
+    }
+    if (!cachedSession) throw new Error('Paste the session JSON first.');
+    return cachedSession;
+  }
+  function workspaceId() {
+    const id = document.getElementById('workspace-id').value.trim();
+    if (!id) throw new Error('Enter the selected ChatGPT workspace/account ID.');
+    return id;
   }
 
   function syncProjectChooserState() {
-    const enabled = document.getElementById('opt-projects').checked;
+    const enabled = !busy && document.getElementById('opt-projects').checked;
     document.getElementById('project-choose-btn').disabled = !enabled;
     document.getElementById('project-selection-summary').style.opacity = enabled ? '1' : '0.45';
   }
@@ -660,7 +717,8 @@
 
     let token;
     try {
-      token = parseSessionToken();
+      token = readSession().token;
+      workspaceId();
     } catch (e) {
       list.innerHTML = '<div class="project-picker-status error"></div>';
       list.firstElementChild.textContent = e.message;
@@ -668,10 +726,10 @@
     }
 
     try {
-      const resp = await fetch('/list-projects', {
+      const resp = await apiFetch('/list-projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, workspaceId: workspaceId() }),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
@@ -700,7 +758,7 @@
 
   async function openProjectPicker(event) {
     if (event) event.preventDefault();
-    if (!document.getElementById('opt-projects').checked) return;
+    if (busy || !document.getElementById('opt-projects').checked) return;
     document.getElementById('project-overlay').classList.add('open');
 
     if (!_projectsLoaded) {
@@ -750,277 +808,148 @@
     };
   }
 
-  function startExport() {
-    const raw         = document.getElementById('token-input').value.trim();
-    const outputDir   = document.getElementById('output-dir').value.trim() || _defaultDir || '~/Desktop/chatgpt-export';
-    const concurrency = parseInt(document.getElementById('concurrency').value, 10);
-    const createZip   = document.getElementById('create-zip').checked;
-    const keepAwake   = document.getElementById('keep-awake').checked;
-    const exportOptions = {
-      conversations: document.getElementById('opt-conversations').checked,
-      projects:      document.getElementById('opt-projects').checked,
-      selectedProjectIds: _selectedProjectIds,
-      gpts:          document.getElementById('opt-gpts').checked,
-      formats: {
-        json:     document.getElementById('opt-json').checked,
-        markdown: document.getElementById('opt-markdown').checked,
-        html:     document.getElementById('opt-html').checked,
-      },
-      markdown: getMarkdownOptions(),
-      dateFrom: document.getElementById('opt-date-from').value,
-      dateTo:   document.getElementById('opt-date-to').value,
-    };
-
-    if (!raw) return alert('Please paste the session JSON first.');
-
-    let parsed;
-    try { parsed = JSON.parse(raw); } catch {
-      return alert('Invalid JSON. Make sure you copied the entire page content.');
-    }
-    const token = parsed.accessToken;
-    if (!token) return alert('No "accessToken" found. Make sure you are logged in and copied the full page.');
-
-    // Save preferences
-    savePrefs({
-      outputDir,
-      concurrency,
-      keepAwake,
-      markdown: exportOptions.markdown,
-    });
-
-    document.getElementById('export-btn').disabled      = true;
-    document.getElementById('token-input').disabled     = true;
-    document.getElementById('progress-section').classList.remove('hidden');
-    document.getElementById('result').classList.add('hidden');
-    document.getElementById('stats-row').textContent    = '';
-    document.getElementById('progress-bar').style.width = '0%';
-    document.getElementById('progress-bar').style.background = '#3b82f6';
-    document.getElementById('step1-num').classList.add('done');
-    document.getElementById('step1-num').textContent = '✓';
-    document.getElementById('step2-num').classList.add('done');
-    document.getElementById('step2-num').textContent = '✓';
-
-    fetch('/start-export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, outputDir, concurrency, createZip, keepAwake, exportOptions }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) { showResult('error', data.error); resetUI(); return; }
-
-        const evtSource = new EventSource('/progress/' + data.exportId);
-        let exportDone = false;
-
-        evtSource.addEventListener('status', (e) => {
-          document.getElementById('progress-text').textContent = e.data;
-        });
-
-        evtSource.addEventListener('progress', (e) => {
-          const d   = JSON.parse(e.data);
-          const pct = Math.round((d.current / d.total) * 100);
-          document.getElementById('progress-bar').style.width = pct + '%';
-          document.getElementById('progress-text').textContent =
-            'Downloading ' + d.current + ' of ' + d.total + ' (' + pct + '%)';
-          document.getElementById('current-title').textContent = d.title || '';
-          if (d.stats) document.getElementById('stats-row').textContent = d.stats;
-        });
-
-        evtSource.addEventListener('error_msg', (e) => {
-          evtSource.close();
-          showResult('error', e.data);
-          resetUI();
-        });
-
-        // A 429 that happens before the conversation queue is available cannot
-        // provide reliable processed/remaining counts. Treat it as a safe pause,
-        // not as a generic export failure.
-        evtSource.addEventListener('rate_limited', (e) => {
-          exportDone = true;
-          evtSource.close();
-          const d = JSON.parse(e.data);
-          document.getElementById('progress-bar').style.background = '#f59e0b';
-          document.getElementById('progress-text').textContent = 'Export paused by ChatGPT rate limit.';
-          document.getElementById('current-title').textContent = '';
-
-          let msg = '<strong>Export paused by ChatGPT rate limit.</strong>' +
-            '<br><br>ChatGPT returned HTTP 429 before the export could finish.';
-          if (d.retryAfter) msg += '<br>Retry-After: <code>' + d.retryAfter + '</code>.';
-          msg += '<br><br><strong>No saved progress was lost.</strong> Run the export again later using the same output folder. Smart Resume will continue from the data already saved.';
-          showResult('warning', msg);
-          resetUI();
-        });
-
-        evtSource.addEventListener('done', (e) => {
-          exportDone = true;
-          evtSource.close();
-          const d = JSON.parse(e.data);
-          const bar = document.getElementById('progress-bar');
-
-          let msg;
-          let resultType = 'success';
-
-          if (d.rateLimited) {
-            const processed = d.processed ?? ((d.succeeded || 0) + (d.updated || 0) + (d.skipped || 0) + (d.failed || 0));
-            const remaining = d.remaining ?? Math.max(0, (d.total || 0) - processed);
-            const pct = d.total > 0 ? Math.round((processed / d.total) * 100) : 0;
-
-            bar.style.width = pct + '%';
-            bar.style.background = '#f59e0b';
-            document.getElementById('progress-text').textContent =
-              'Paused at ' + processed + ' of ' + d.total + ' (' + pct + '%) — ChatGPT rate limit';
-            document.getElementById('current-title').textContent = '';
-
-            msg = '<strong>Export paused by ChatGPT rate limit.</strong>' +
-              '<br>' + processed + ' of ' + d.total + ' conversations processed · ' + remaining + ' remaining.' +
-              '<br>' + d.succeeded + ' new · ' + (d.updated || 0) + ' updated · ' + d.skipped + ' resumed · ' + d.failed + ' failed.';
-            if (d.rateLimitRetryAfter) msg += '<br>Retry-After: <code>' + d.rateLimitRetryAfter + '</code>.';
-            msg += '<br><br><strong>No saved progress was lost.</strong> Run the export again later using the same output folder. Smart Resume will continue without re-downloading completed conversations.';
-            resultType = 'warning';
-          } else {
-            bar.style.width = '100%';
-            bar.style.background = '#22c55e';
-            if (d.total === 0) {
-              msg = 'No active or archived conversations found in your account.';
-            } else {
-              msg = 'Done! ' + d.succeeded + ' new · ' + (d.updated || 0) + ' updated · ' + d.skipped + ' resumed · ' + d.failed + ' failed';
-            }
-          }
-
-          if (d.archived > 0) msg += '<br>' + d.archived + ' archived conversation(s) stored under <code>archived/</code>.';
-          if (d.movedToArchived > 0) msg += '<br>' + d.movedToArchived + ' conversation(s) moved to <code>archived/</code>.';
-          if (d.restoredFromArchived > 0) msg += '<br>' + d.restoredFromArchived + ' conversation(s) restored from <code>archived/</code>.';
-          if (d.restoredFromDeleted > 0) msg += '<br>' + d.restoredFromDeleted + ' conversation(s) restored from <code>deleted/</code>.';
-          if (d.movedToDeleted > 0) msg += '<br>' + d.movedToDeleted + ' conversation(s) no longer found in ChatGPT and moved to <code>deleted/</code>.';
-          if (exportOptions.conversations && d.deletionReconciliationComplete === false) msg += '<br>Deleted-conversation reconciliation was skipped because a complete inventory was not available.';
-          if (d.totalFiles > 0) msg += '<br>' + (d.totalFiles - d.failedFiles) + ' of ' + d.totalFiles + ' files downloaded.';
-          if (d.projects > 0) msg += '<br>' + d.projects + ' project(s) exported.';
-          if (d.gpts > 0) msg += '<br>' + d.gpts + ' GPT(s) exported to <code>gpts/</code>';
-          msg += '<br><br>Saved to:<br><code>' + d.output + '</code>';
-          if (d.failedTitles && d.failedTitles.length)
-            msg += '<br><br>' + d.failed + ' conversations failed: ' + d.failedTitles.join(', ');
-          showResult(resultType, msg);
-          resetUI();
-        });
-
-        evtSource.onerror = () => {
-          if (exportDone) return; // server closed connection after done — not an error
-          evtSource.close();
-          showResult('error', 'Connection lost.');
-          resetUI();
-        };
-      })
-      .catch(err => {
-        showResult('error', 'Failed to start: ' + err.message);
-        resetUI();
-      });
+  function setBusy(value) {
+    busy = value;
+    document.getElementById('export-btn').disabled = value;
+    document.getElementById('regenerate-md-btn').disabled = value;
+    document.getElementById('token-input').disabled = value;
+    document.getElementById('workspace-id').disabled = value;
+    syncProjectChooserState();
   }
 
-  function regenerateMarkdown() {
-    const outputDir = document.getElementById('output-dir').value.trim() || _defaultDir || '~/Desktop/chatgpt-export';
-    const markdownOptions = getMarkdownOptions();
+  function resetUI() {
+    clearTimeout(credentialExpiry);
+    cachedSession = null;
+    document.getElementById('token-input').value = '';
+    setBusy(false);
+  }
 
-    savePrefs({
-      outputDir,
-      concurrency: document.getElementById('concurrency').value,
-      keepAwake: document.getElementById('keep-awake').checked,
-      markdown: markdownOptions,
-    });
+  function showResult(type, message) {
+    const el = document.getElementById('result');
+    el.className = 'result ' + type;
+    el.textContent = message;
+    el.style.whiteSpace = 'pre-wrap';
+    el.classList.remove('hidden');
+  }
 
-    document.getElementById('export-btn').disabled = true;
-    document.getElementById('regenerate-md-btn').disabled = true;
+  function completionResult(d, regeneration = false) {
+    const issues = Array.isArray(d.errors) ? d.errors : [];
+    const remaining = d.remaining ?? Math.max(0, (d.total || 0) - (d.processed || 0));
+    const incomplete = d.rateLimited || d.failed > 0 || d.failedFiles > 0 || issues.length > 0 || d.status === 'partial' || d.status === 'failed' || d.status === 'warning' || (!regeneration && d.deletionReconciliationComplete === false);
+    let message = regeneration
+      ? `${d.succeeded || 0} of ${d.total || 0} local conversation views regenerated (Markdown and HTML).`
+      : `${d.succeeded || 0} new · ${d.updated || 0} updated · ${d.skipped || 0} resumed · ${d.failed || 0} failed.`;
+    if (d.rateLimited) message = 'Export paused by ChatGPT rate limit.\n' + message + `\n${remaining} conversation(s) remain. Run again later in the same folder and review the saved report.`;
+    if (d.rateLimitRetryAfter || d.retryAfter) message += '\nRetry-After: ' + (d.rateLimitRetryAfter || d.retryAfter);
+    if (d.deletionReconciliationComplete === false && !regeneration) message += '\nAutomatic deletion classification was disabled; absence from the inventory is not proof of deletion.';
+    if (d.totalFiles) message += `\n${d.totalFiles - (d.failedFiles || 0)} of ${d.totalFiles} requested files available.`;
+    if (d.failedTitles?.length) message += '\nFailed conversations: ' + d.failedTitles.join(', ');
+    if (issues.length) message += '\nOpen issues: ' + issues.map(e => typeof e === 'string' ? e : e.message || JSON.stringify(e)).join('\n');
+    if (d.output) message += '\nSaved to: ' + d.output;
+    if (!regeneration) message += '\nCheck the saved report and manifest before archiving this folder with Finder or Explorer.';
+    showResult(incomplete ? 'warning' : 'success', message);
+    document.getElementById('progress-bar').style.background = incomplete ? '#f59e0b' : '#22c55e';
+  }
+
+  async function launchJob(endpoint, payload, regeneration = false) {
+    setBusy(true);
     document.getElementById('progress-section').classList.remove('hidden');
     document.getElementById('result').classList.add('hidden');
     document.getElementById('stats-row').textContent = '';
     document.getElementById('current-title').textContent = '';
     document.getElementById('progress-bar').style.width = '0%';
     document.getElementById('progress-bar').style.background = '#3b82f6';
-    document.getElementById('progress-text').textContent = 'Scanning local JSON files...';
-
-    fetch('/regenerate-markdown', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ outputDir, markdownOptions }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          showResult('error', data.error);
-          resetUI();
-          return;
-        }
-
-        const evtSource = new EventSource('/progress/' + data.exportId);
-        let regenerationDone = false;
-
-        evtSource.addEventListener('status', (e) => {
-          document.getElementById('progress-text').textContent = e.data;
-        });
-
-        evtSource.addEventListener('progress', (e) => {
-          const d = JSON.parse(e.data);
-          const pct = Math.round((d.current / d.total) * 100);
-          document.getElementById('progress-bar').style.width = pct + '%';
-          document.getElementById('progress-text').textContent =
-            'Regenerating ' + d.current + ' of ' + d.total + ' (' + pct + '%)';
-          document.getElementById('current-title').textContent = d.title || '';
-        });
-
-        evtSource.addEventListener('error_msg', (e) => {
-          evtSource.close();
-          showResult('error', e.data);
-          resetUI();
-        });
-
-        evtSource.addEventListener('done', (e) => {
-          regenerationDone = true;
-          evtSource.close();
-          const d = JSON.parse(e.data);
-
-          document.getElementById('progress-bar').style.width = '100%';
-          document.getElementById('progress-bar').style.background = '#22c55e';
-
-          if (d.total === 0) {
-            showResult('error', 'No exported conversation JSON files were found in the selected folder.');
-          } else {
-            let msg = 'Done! ' + d.succeeded + ' of ' + d.total + ' Markdown files regenerated.';
-            if (d.failed > 0) {
-              msg += '<br><br>' + d.failed + ' failed.';
-              if (d.failedTitles?.length) {
-                msg += '<br>' + d.failedTitles.join('<br>');
-              }
-            }
-            showResult(d.failed > 0 ? 'error' : 'success', msg);
-          }
-
-          resetUI();
-        });
-
-        evtSource.onerror = () => {
-          if (regenerationDone) return;
-          evtSource.close();
-          showResult('error', 'Connection lost.');
-          resetUI();
-        };
-      })
-      .catch(err => {
-        showResult('error', 'Failed to start Markdown regeneration: ' + err.message);
-        resetUI();
+    document.getElementById('progress-text').textContent = 'Starting...';
+    try {
+      const response = await apiFetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      payload.token = null;
+      cachedSession = null;
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      const progress = openProgress(data.exportId);
+      let done = false;
+      progress.addEventListener('status', e => { document.getElementById('progress-text').textContent = e.data; });
+      progress.addEventListener('progress', e => {
+        const d = JSON.parse(e.data);
+        const pct = d.total > 0 ? Math.round(d.current / d.total * 100) : 0;
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('progress-text').textContent = `${d.current} of ${d.total} (${pct}%)`;
+        document.getElementById('current-title').textContent = d.title || '';
+        document.getElementById('stats-row').textContent = d.stats || '';
       });
+      const finish = () => { done = true; progress.close(); resetUI(); };
+      progress.addEventListener('error_msg', e => { showResult('error', e.data + '\nWaiting for the saved completion report...'); });
+      progress.addEventListener('rate_limited', e => { const d = JSON.parse(e.data); showResult('warning', (d.message || 'Export paused by ChatGPT rate limit.') + '\nWaiting for the saved completion report...'); });
+      progress.addEventListener('done', e => { completionResult(JSON.parse(e.data), regeneration); finish(); });
+      progress.onerror = () => {
+        if (done) return;
+        showResult('warning', 'Progress connection closed before completion. The job may still be running. Review the saved report; another job is blocked until it finishes.');
+        finish();
+      };
+    } catch (error) {
+      payload.token = null;
+      showResult('error', error.message);
+      resetUI();
+    }
   }
 
-  function resetUI() {
-    document.getElementById('export-btn').disabled = false;
-    document.getElementById('regenerate-md-btn').disabled = false;
-    document.getElementById('token-input').disabled = false;
+  function startExport() {
+    if (busy) return;
+    let session, workspace;
+    try { session = readSession(); workspace = workspaceId(); }
+    catch (error) { showResult('error', error.message); return; }
+    const outputDir = document.getElementById('output-dir').value.trim() || _defaultDir;
+    const concurrency = Number(document.getElementById('concurrency').value);
+    const keepAwake = document.getElementById('keep-awake').checked;
+    const exportOptions = {
+      identity: { userId: session.userId, workspaceId: workspace },
+      conversations: document.getElementById('opt-conversations').checked,
+      projects: document.getElementById('opt-projects').checked,
+      selectedProjectIds: _selectedProjectIds,
+      gpts: document.getElementById('opt-gpts').checked,
+      formats: { json: true, markdown: document.getElementById('opt-markdown').checked, html: document.getElementById('opt-html').checked },
+      markdown: getMarkdownOptions(),
+      dateFrom: document.getElementById('opt-date-from').value,
+      dateTo: document.getElementById('opt-date-to').value,
+    };
+    savePrefs({ outputDir, concurrency, keepAwake, markdown: exportOptions.markdown });
+    launchJob('/start-export', { token: session.token, outputDir, concurrency, keepAwake, exportOptions });
   }
 
-  function showResult(type, message) {
-    const el = document.getElementById('result');
-    el.className = 'result ' + type;
-    el.innerHTML = message;
-    el.classList.remove('hidden');
+  function regenerateMarkdown() {
+    if (busy) return;
+    const outputDir = document.getElementById('output-dir').value.trim() || _defaultDir;
+    launchJob('/regenerate-markdown', { outputDir, markdownOptions: getMarkdownOptions() }, true);
   }
+
+  document.querySelector('[data-handler-0]').addEventListener('click', function(event) { if(event.target===this)fpClose() });
+  document.querySelector('[data-handler-1]').addEventListener('click', function(event) { fpClose() });
+  document.querySelector('[data-handler-2]').addEventListener('keydown', function(event) { if(event.key==='Enter')fpCreateFolder();if(event.key==='Escape')fpToggleNew(false) });
+  document.querySelector('[data-handler-3]').addEventListener('click', function(event) { fpCreateFolder() });
+  document.querySelector('[data-handler-4]').addEventListener('click', function(event) { fpToggleNew(false) });
+  document.querySelector('[data-handler-5]').addEventListener('click', function(event) { fpToggleNew(true) });
+  document.querySelector('[data-handler-6]').addEventListener('click', function(event) { fpClose() });
+  document.querySelector('[data-handler-7]').addEventListener('click', function(event) { fpSelect() });
+  document.querySelector('[data-handler-8]').addEventListener('click', function(event) { if(event.target===this)projectClose() });
+  document.querySelector('[data-handler-9]').addEventListener('click', function(event) { projectClose() });
+  document.querySelector('[data-handler-10]').addEventListener('click', function(event) { projectSelectAll() });
+  document.querySelector('[data-handler-11]').addEventListener('click', function(event) { projectClearAll() });
+  document.querySelector('[data-handler-12]').addEventListener('click', function(event) { projectClose() });
+  document.querySelector('[data-handler-13]').addEventListener('click', function(event) { projectApplySelection() });
+  document.querySelector('[data-handler-14]').addEventListener('click', function(event) { pickFolder() });
+  document.querySelector('[data-handler-15]').addEventListener('click', function(event) { toggleOptions(this) });
+  document.querySelector('[data-handler-16]').addEventListener('change', function(event) { syncProjectChooserState() });
+  document.querySelector('[data-handler-17]').addEventListener('click', function(event) { openProjectPicker(event) });
+  document.querySelector('[data-handler-18]').addEventListener('click', function(event) { startExport() });
+  document.querySelector('[data-handler-19]').addEventListener('click', function(event) { regenerateMarkdown() });
+  document.getElementById('workspace-id').addEventListener('change', () => {
+    _projectsLoaded = false;
+    _availableProjects = [];
+    _selectedProjectIds = null;
+    updateProjectSummary();
+  });
+  if (!launchKey) showResult('error', 'Open the complete private launch URL printed in the terminal.');
+  })();
 </script>
 </body>
 </html>

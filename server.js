@@ -1,378 +1,211 @@
 #!/usr/bin/env node
-/**
- * ChatGPT Conversation Exporter — Node.js with local web UI.
- *
- * server.js is intentionally kept as the application entrypoint. Export, API,
- * rendering and local-regeneration logic live in focused modules under lib/.
- */
-
+/** Local loopback UI. The launch capability is never served in the HTML. */
 import { createServer } from "node:http";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { runExport } from "./lib/export-runner.js";
 import { regenerateMarkdown } from "./lib/markdown-regeneration.js";
-import { RateLimitStopError, fetchProjectsInventory, resetRateLimiter, setApiDebugLogger } from "./lib/chatgpt-api.js";
+import { RateLimitStopError, fetchProjectsInventory, resetRateLimiter, setApiDebugLogger, setApiWorkspace, redactSecrets } from "./lib/chatgpt-api.js";
 
-const __dirname = (() => {
-  try { return dirname(fileURLToPath(import.meta.url)); }
-  catch { return dirname(process.argv[1] || "."); }
-})();
-
-const DEBUG = process.argv.includes("--debug");
-const DEBUG_LOG = join(__dirname, "debug.log");
-
-function dbg(msg, data) {
-  if (!DEBUG) return;
-  const ts = new Date().toISOString();
-  const line = data !== undefined
-    ? `[${ts}] ${msg} ${typeof data === "string" ? data : JSON.stringify(data, null, 2)}`
-    : `[${ts}] ${msg}`;
-  appendFileSync(DEBUG_LOG, line + "\n", "utf8");
-  console.log("[DEBUG]", msg, data !== undefined ? data : "");
-}
-
-if (DEBUG) {
-  const { version, platform, arch } = process;
-  const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || "(none)";
-  writeFileSync(DEBUG_LOG, [
-    "=".repeat(60),
-    `ChatGPT Exporter — Debug log started ${new Date().toISOString()}`,
-    `Node.js : ${version}`,
-    `Platform: ${platform} (${arch})`,
-    `Proxy   : ${proxy}`,
-    `CWD     : ${__dirname}`,
-    "=".repeat(60),
-    "",
-  ].join("\n"), "utf8");
-  console.log(`[DEBUG] Debug mode ON — logging to ${DEBUG_LOG}`);
-}
-
-setApiDebugLogger(dbg);
-
+const root = dirname(fileURLToPath(import.meta.url));
 const HOST = "127.0.0.1";
 const PORT = 8523;
+const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_EVENTS = 128;
 
-const exportJobs = new Map(); // exportId → { events: [], done: false }
+// Debugging intentionally omits request/response bodies, URLs and proxy values.
+function dbg(message) {
+  if (!process.argv.includes("--debug")) return;
+  appendFileSync(join(root, "debug.log"), `[${new Date().toISOString()}] API diagnostic event\n`, { mode: 0o600 });
+}
+setApiDebugLogger(dbg);
 
-const server = createServer((req, res) => {
-  // Serve UI
-  if (req.method === "GET" && (req.url === "/" || req.url === "")) {
-    const candidates = [
-      join(__dirname, "public", "index.html"),
-      join(dirname(process.execPath), "public", "index.html"),
-      join(process.cwd(), "public", "index.html"),
-    ];
-    let html = null;
-    for (const p of candidates) {
-      try { html = readFileSync(p, "utf8"); break; } catch {}
-    }
-    if (html) {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
-    } else {
-      res.writeHead(500);
-      res.end("Could not find public/index.html — place the 'public' folder next to the exe.");
-    }
-
-  // List Projects for the optional Project selector. This fetches only the
-  // lightweight Project inventory; it does not download conversations or files.
-  } else if (req.method === "POST" && req.url === "/list-projects") {
-    let body = "";
-    req.on("data", (c) => (body += c));
-    req.on("end", async () => {
-      let token;
-      try {
-        token = JSON.parse(body || "{}").token;
-      } catch {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid JSON body" }));
-        return;
-      }
-
-      if (!token) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "No token provided" }));
-        return;
-      }
-
-      resetRateLimiter();
-      try {
-        const projects = await fetchProjectsInventory(token);
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({
-          projects: projects.map((project) => ({ id: project.gizmoId, name: project.name })),
-        }));
-      } catch (e) {
-        if (e instanceof RateLimitStopError) {
-          res.writeHead(429, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({
-            error: e.message,
-            rateLimited: true,
-            retryAfter: e.retryAfter || null,
-          }));
-        } else {
-          res.writeHead(502, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: `Could not load Projects: ${e.message}` }));
-        }
-      } finally {
-        resetRateLimiter();
-      }
-    });
-
-  // Start export
-  } else if (req.method === "POST" && req.url === "/start-export") {
-    let body = "";
-    req.on("data", (c) => (body += c));
-    req.on("end", () => {
-      let token, outputDir, concurrency, createZip, keepAwake, exportOptions;
-      try {
-        const parsed = JSON.parse(body);
-        token         = parsed.token;
-        outputDir     = parsed.outputDir   || join(homedir(), "Desktop", "chatgpt-export");
-        concurrency   = parsed.concurrency || 5;
-        createZip     = parsed.createZip   ?? false;
-        keepAwake     = parsed.keepAwake   ?? true;
-        exportOptions = parsed.exportOptions || {};
-      } catch {
-        res.writeHead(400);
-        res.end(JSON.stringify({ error: "Invalid JSON body" }));
-        return;
-      }
-      if (!token) {
-        res.writeHead(400);
-        res.end(JSON.stringify({ error: "No token provided" }));
-        return;
-      }
-
-      const exportId = randomUUID().slice(0, 8);
-      exportJobs.set(exportId, { events: [], done: false });
-
-      const sendEvent = (type, data) => {
-        const job = exportJobs.get(exportId);
-        if (job) job.events.push({ type, data: String(data).replace(/\n/g, "\\n") });
-        // Terminal output
-        if (type === "progress") {
-          const d = JSON.parse(data);
-          const pct = String(Math.round((d.current / d.total) * 100)).padStart(3);
-          process.stdout.write(`\r[${pct}%] ${d.current}/${d.total}  ${(d.title || "").slice(0, 50).padEnd(50)}`);
-        } else if (type === "status") {
-          process.stdout.write(`\r\x1b[2K${data}\n`);
-        } else if (type === "done") {
-          const d = JSON.parse(data);
-          process.stdout.write(`\r\x1b[2K`);
-          if (d.rateLimited) {
-            console.warn(
-              `\n⚠ Export paused by ChatGPT rate limit — ` +
-              `${d.processed}/${d.total} conversations processed · ${d.remaining} remaining`
-            );
-          } else {
-            console.log(
-              `\n✓ Done — ${d.succeeded} new · ${d.updated || 0} updated · ` +
-              `${d.skipped} resumed · ${d.failed} failed`
-            );
-          }
-          console.log(`  Saved to: ${d.output}\n`);
-        } else if (type === "rate_limited") {
-          const d = JSON.parse(data);
-          console.warn(`\n⚠ ${d.message}\n`);
-        } else if (type === "error_msg") {
-          console.error(`\n✗ ${data}\n`);
-        }
-      };
-
-      runExport(token, outputDir, concurrency, createZip, keepAwake, exportOptions, sendEvent).finally(() => {
-        const job = exportJobs.get(exportId);
-        if (job) job.done = true;
-      });
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ exportId }));
-    });
-
-  // Regenerate Markdown from existing local JSON files (no ChatGPT requests)
-  } else if (req.method === "POST" && req.url === "/regenerate-markdown") {
-    let body = "";
-    req.on("data", (c) => (body += c));
-    req.on("end", () => {
-      let outputDir, markdownOptions;
-
-      try {
-        const parsed = JSON.parse(body || "{}");
-        outputDir = parsed.outputDir || join(homedir(), "Desktop", "chatgpt-export");
-        markdownOptions = parsed.markdownOptions || {};
-      } catch {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid JSON body" }));
-        return;
-      }
-
-      const exportId = randomUUID().slice(0, 8);
-      exportJobs.set(exportId, { events: [], done: false });
-
-      const sendEvent = (type, data) => {
-        const job = exportJobs.get(exportId);
-        if (job) job.events.push({ type, data: String(data).replace(/\n/g, "\\n") });
-
-        if (type === "progress") {
-          const d = JSON.parse(data);
-          const pct = String(Math.round((d.current / d.total) * 100)).padStart(3);
-          process.stdout.write(`\r[${pct}%] ${d.current}/${d.total}  ${(d.title || "").slice(0, 50).padEnd(50)}`);
-        } else if (type === "status") {
-          process.stdout.write(`\r\x1b[2K${data}\n`);
-        } else if (type === "done") {
-          const d = JSON.parse(data);
-          process.stdout.write(`\r\x1b[2K`);
-          console.log(`\n✓ Markdown regenerated — ${d.succeeded}/${d.total} succeeded · ${d.failed} failed`);
-          console.log(`  Saved to: ${d.output}\n`);
-        } else if (type === "error_msg") {
-          console.error(`\n✗ ${data}\n`);
-        }
-      };
-
-      regenerateMarkdown(outputDir, markdownOptions, sendEvent).finally(() => {
-        const job = exportJobs.get(exportId);
-        if (job) job.done = true;
-      });
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ exportId }));
-    });
-
-  // SSE progress stream
-  } else if (req.method === "GET" && req.url.startsWith("/progress/")) {
-    const exportId = req.url.split("/progress/")[1];
-    const job      = exportJobs.get(exportId);
-    if (!job) { res.writeHead(404); res.end(); return; }
-
-    res.writeHead(200, {
-      "Content-Type":  "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection":    "keep-alive",
-    });
-
-    let sent = 0;
-    const interval = setInterval(() => {
-      while (sent < job.events.length) {
-        const evt = job.events[sent++];
-        res.write(`event: ${evt.type}\ndata: ${evt.data}\n\n`);
-      }
-      if (job.done && sent >= job.events.length) {
-        clearInterval(interval);
-        exportJobs.delete(exportId);
-        res.end();
-      }
-    }, 200);
-
-    req.on("close", () => { clearInterval(interval); if (!res.writableEnded) res.end(); });
-
-  // Platform config (default dir + platform name)
-  } else if (req.method === "GET" && req.url === "/config") {
-    const defaultDir = join(homedir(), "Desktop", "chatgpt-export");
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ defaultDir, platform: process.platform }));
-
-  // Debug log viewer
-  } else if (req.method === "GET" && req.url === "/debug-log") {
-    if (!DEBUG) {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ enabled: false, message: "Start server with --debug to enable debug logging." }));
-      return;
-    }
-    try {
-      const content = existsSync(DEBUG_LOG) ? readFileSync(DEBUG_LOG, "utf8") : "(empty)";
-      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-      res.end(content);
-    } catch {
-      res.writeHead(500);
-      res.end("Could not read debug log.");
-    }
-
-  // Directory listing for in-browser folder picker
-  } else if (req.method === "GET" && req.url.startsWith("/list-dir")) {
-    try {
-      const qs     = new URL(req.url, `http://${HOST}`).searchParams;
-      const reqPath = qs.get("path") || homedir();
-      const sep    = process.platform === "win32" ? "\\" : "/";
-      const parent = reqPath.split(sep).slice(0, -1).join(sep) || sep;
-      const entries = readdirSync(reqPath, { withFileTypes: true });
-      const dirs = entries
-        .filter(e => e.isDirectory() && !e.name.startsWith("."))
-        .map(e => ({ name: e.name, path: join(reqPath, e.name) }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      // On Windows, list drives if at root
-      let drives = [];
-      if (process.platform === "win32" && (reqPath === "" || reqPath.match(/^[A-Z]:\\?$/i))) {
-        for (const letter of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
-          const d = `${letter}:\\`;
-          try { readdirSync(d); drives.push({ name: d, path: d }); } catch {}
-        }
-      }
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ path: reqPath, parent, dirs, drives }));
-    } catch (e) {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ path: homedir(), parent: homedir(), dirs: [], drives: [], error: e.message }));
-    }
-
-  // Create directory
-  } else if (req.method === "POST" && req.url === "/create-dir") {
-    let body = "";
-    req.on("data", c => (body += c));
-    req.on("end", () => {
-      try {
-        const { path } = JSON.parse(body);
-        if (!path) throw new Error("No path provided");
-        mkdirSync(path, { recursive: true });
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true, path }));
-      } catch (e) {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: false, error: e.message }));
-      }
-    });
-
-  } else {
-    res.writeHead(404);
-    res.end();
-  }
-});
-
-// ── Start ────────────────────────────────────────────────────────────
-
-server.on("error", (e) => {
-  if (e.code === "EADDRINUSE") {
-    console.error(`\nPort ${PORT} is already in use — server is probably already running.`);
-    console.error(`Open http://${HOST}:${PORT} in your browser.\n`);
-    process.exit(0);
-  }
-});
-
-export function startServer() {
-  const url = `http://${HOST}:${PORT}`;
-  server.listen(PORT, HOST, () => {
-    console.log(`\nChatGPT Exporter v2 running at ${url}`);
-    console.log("Press Ctrl+C to stop.\n");
-    try {
-      if (process.platform === "win32") {
-        // explorer.exe is more reliable than `start` in RDP/service contexts.
-        // Note: explorer always exits with code 1 even on success — that's normal.
-        spawn("explorer.exe", [url], { detached: true, stdio: "ignore" }).unref();
-      } else if (process.platform === "darwin") {
-        spawn("open", [url], { detached: true, stdio: "ignore" }).unref();
-      } else {
-        spawn("xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
-      }
-    } catch {}
-  });
-
-  // Ensure caffeinate is killed on server exit
-  process.on("SIGINT",  () => { if (global._caffeinate) try { global._caffeinate.kill(); } catch {} process.exit(0); });
-  process.on("SIGTERM", () => { if (global._caffeinate) try { global._caffeinate.kill(); } catch {} process.exit(0); });
+function json(res, code, value) {
+  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(value));
 }
 
-// Auto-start when run directly (node server.js or npm start)
-startServer();
+async function readJson(req) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY_BYTES) throw Object.assign(new Error("Request body too large"), { status: 413 });
+    chunks.push(chunk);
+  }
+  try {
+    const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    return value;
+  } catch {
+    throw Object.assign(new Error("Invalid JSON body"), { status: 400 });
+  }
+}
+
+function validKey(given, expected) {
+  return typeof given === "string" && /^[a-f0-9]{64}$/.test(given) &&
+    timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+}
+
+/** Dependency injection is used only by synthetic local integration tests. */
+export function createExporterServer(dependencies = {}) {
+  const exportFn = dependencies.runExport || runExport;
+  const regenerateFn = dependencies.regenerateMarkdown || regenerateMarkdown;
+  const projectsFn = dependencies.fetchProjectsInventory || fetchProjectsInventory;
+  const key = randomBytes(32).toString("hex");
+  const jobs = new Map();
+  let busy = false;
+  let boundPort = PORT;
+
+  const server = createServer(async (req, res) => {
+    const origin = `http://${HOST}:${boundPort}`;
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+    res.setHeader("X-Frame-Options", "DENY");
+    const host = req.headers.host;
+    if (host !== `${HOST}:${boundPort}`) return json(res, 403, { error: "Invalid local host" });
+    if (req.headers.origin && req.headers.origin !== origin) return json(res, 403, { error: "Invalid origin" });
+    let url;
+    try { url = new URL(req.url, origin); } catch { return json(res, 400, { error: "Invalid URL" }); }
+    if (url.searchParams.has("key") || url.searchParams.has("token")) return json(res, 400, { error: "Credentials must not be sent in URLs" });
+    if (req.method === "GET" && url.pathname === "/") {
+      try {
+        const html = readFileSync(join(root, "public", "index.html"), "utf8").replace(/\r\n?/g, "\n");
+        const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => `'sha256-${createHash("sha256").update(match[1]).digest("base64")}'`);
+        res.setHeader("Content-Security-Policy", `default-src 'none'; script-src ${scripts.join(" ")}; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'`);
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(html);
+      } catch {
+        json(res, 500, { error: "Could not read the application interface" });
+      }
+      return;
+    }
+    if (!validKey(req.headers["x-cge-key"], key)) return json(res, 403, { error: "Open the complete launch URL from the terminal" });
+    if (req.method === "POST" && req.headers.origin !== origin) return json(res, 403, { error: "Missing local origin" });
+    if (req.method === "POST" && !/^application\/json(?:\s*;|$)/i.test(req.headers["content-type"] || "")) return json(res, 415, { error: "Use application/json" });
+    try {
+      if (req.method === "GET" && url.pathname === "/config") return json(res, 200, { defaultDir: join(homedir(), "Desktop", "chatgpt-export"), platform: process.platform });
+      if (req.method === "GET" && url.pathname === "/debug-log") {
+        const enabled = process.argv.includes("--debug");
+        return json(res, 200, { enabled, content: enabled && existsSync(join(root, "debug.log")) ? readFileSync(join(root, "debug.log"), "utf8") : "" });
+      }
+      if (req.method === "GET" && url.pathname === "/list-dir") {
+        const requested = url.searchParams.get("path") || homedir();
+        const path = resolve(requested);
+        const dirs = readdirSync(path, { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith(".")).map(e => ({ name: e.name, path: join(path, e.name) })).sort((a, b) => a.name.localeCompare(b.name));
+        return json(res, 200, { path, parent: dirname(path), dirs, drives: [] });
+      }
+      if (req.method === "GET" && url.pathname.startsWith("/progress/")) {
+        const job = jobs.get(url.pathname.slice("/progress/".length));
+        if (!job) return json(res, 404, { error: "Unknown or expired job" });
+        if (job.connected) return json(res, 409, { error: "Progress already connected" });
+        job.connected = true;
+        res.writeHead(200, { "Content-Type": "text/event-stream", Connection: "keep-alive" });
+        res.flushHeaders();
+        job.response = res;
+        for (const event of job.events) res.write(event);
+        job.events = [];
+        if (job.done) res.end();
+        req.on("close", () => { job.response = null; job.connected = false; });
+        return;
+      }
+      if (req.method !== "POST") return json(res, 404, { error: "Not found" });
+      const body = await readJson(req);
+      if (busy) return json(res, 409, { error: "Another export or local operation is running" });
+      if (url.pathname === "/create-dir") {
+        if (typeof body.path !== "string" || !body.path.trim()) return json(res, 400, { error: "No folder path provided" });
+        mkdirSync(resolve(body.path), { recursive: true });
+        return json(res, 200, { ok: true, path: resolve(body.path) });
+      }
+      if (url.pathname === "/list-projects") {
+        if (typeof body.token !== "string" || !body.token) return json(res, 400, { error: "No token provided" });
+        if (typeof body.workspaceId !== "string" || !/^[A-Za-z0-9_-]{1,200}$/.test(body.workspaceId)) return json(res, 400, { error: "Explicit workspace ID is required" });
+        busy = true;
+        let projects;
+        try {
+          resetRateLimiter();
+          setApiWorkspace(body.workspaceId);
+          projects = await projectsFn(body.token);
+        } finally { busy = false; try { resetRateLimiter(); } finally { setApiWorkspace(null); } }
+        return json(res, 200, { projects: projects.map(p => ({ id: p.gizmoId, name: p.name })) });
+      }
+      if (url.pathname !== "/start-export" && url.pathname !== "/regenerate-markdown") return json(res, 404, { error: "Not found" });
+      const isExport = url.pathname === "/start-export";
+      if (isExport && (typeof body.token !== "string" || !body.token)) return json(res, 400, { error: "No token provided" });
+      const options = body.exportOptions || {};
+      if (isExport && (!options.identity || typeof options.identity.userId !== "string" || !options.identity.userId.trim() || typeof options.identity.workspaceId !== "string" || !options.identity.workspaceId.trim())) {
+        return json(res, 400, { error: "Session user ID and explicit workspace ID are required" });
+      }
+      const outputDir = resolve(body.outputDir || join(homedir(), "Desktop", "chatgpt-export"));
+      const exportId = randomUUID();
+      const job = { events: [], done: false, connected: false, response: null, terminalEmitted: false, error: null };
+      // Retain only a bounded number of completed job summaries in memory.
+      for (const [id, old] of jobs) if (old.done && jobs.size >= 8) jobs.delete(id);
+      jobs.set(exportId, job);
+      busy = true;
+      const sendEvent = (type, data) => {
+        if (!/^[a-z_]+$/.test(type)) return;
+        if (type === "done") job.terminalEmitted = true;
+        if (type === "error_msg") job.error = redactSecrets(String(data));
+        let payload = String(data);
+        if (type === "progress") {
+          try {
+            const progress = JSON.parse(payload);
+            if (typeof progress.title === "string") progress.title = progress.title.slice(0, 1000);
+            if (typeof progress.stats === "string") progress.stats = progress.stats.slice(0, 2000);
+            payload = JSON.stringify(progress);
+          } catch { return; }
+        } else if (type === "status" || type === "error_msg") payload = payload.slice(0, 8192);
+        const event = `event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`;
+        if (job.response) job.response.write(event);
+        else {
+          if (type === "progress") job.events = job.events.filter(event => !event.startsWith("event: progress\n"));
+          if (job.events.length >= MAX_EVENTS) job.events.shift();
+          job.events.push(event);
+        }
+      };
+      const invoke = () => isExport
+        ? exportFn(body.token, outputDir, 1, false, body.keepAwake ?? false, options, sendEvent)
+        : regenerateFn(outputDir, body.markdownOptions || {}, sendEvent);
+      Promise.resolve().then(invoke).catch(error => sendEvent("error_msg", redactSecrets(error.message))).finally(() => {
+        if (!job.terminalEmitted) sendEvent("done", JSON.stringify({ total: 0, succeeded: 0, failed: 1, status: "partial", errors: [{ message: job.error || "Operation ended without a completion report" }], output: outputDir }));
+        body.token = null;
+        job.done = true;
+        busy = false;
+        if (job.response) job.response.end();
+        const expiry = setTimeout(() => { if (job.done) jobs.delete(exportId); }, 15 * 60 * 1000);
+        expiry.unref();
+      });
+      return json(res, 200, { exportId });
+    } catch (error) {
+      const rateLimited = error instanceof RateLimitStopError;
+      json(res, rateLimited ? 429 : error.status || 400, { error: rateLimited ? "ChatGPT rate limit reached" : error.message, ...(rateLimited ? { rateLimited: true, retryAfter: error.retryAfter || null } : {}) });
+    }
+  });
+  server.on("listening", () => { boundPort = server.address().port; });
+  server.requestTimeout = 30000;
+  server.headersTimeout = 15000;
+  return { server, key };
+}
+
+export function startServer({ port = PORT, openBrowser = true } = {}) {
+  const { server, key } = createExporterServer();
+  server.on("error", error => { console.error(`Could not start local exporter: ${error.code || "server error"}`); process.exitCode = 1; });
+  server.listen(port, HOST, () => {
+    const url = `http://${HOST}:${server.address().port}/#key=${key}`;
+    console.log(`\nChatGPT Exporter running at ${url}\nKeep this launch URL private. Press Ctrl+C to stop.\n`);
+    if (openBrowser) {
+      const command = process.platform === "win32" ? "explorer.exe" : process.platform === "darwin" ? "open" : "xdg-open";
+      try { spawn(command, [url], { detached: true, stdio: "ignore", windowsHide: true }).unref(); } catch {}
+    }
+  });
+  return server;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) startServer();
