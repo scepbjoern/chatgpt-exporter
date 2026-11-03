@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, rmSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync, unlinkSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fixture, allFiles, conversation } from "./export-fixtures.mjs";
 import { entityKey } from "../lib/export-runner.js";
@@ -30,7 +30,7 @@ test("unchanged resume repairs missing derivations, corrupt media, missing manif
   const f = fixture(); try {
     await f.run();
     const record = collectLocalConversations(f.root)[0], files = join(f.root, "files", record.fname);
-    rmSync(join(f.root, "markdown", record.fname + ".md"));
+    unlinkSync(join(f.root, "markdown", record.fname + ".md")); assert.equal(existsSync(join(f.root, "markdown", record.fname + ".md")), false);
     writeFileSync(join(f.root, "html", record.fname + ".html"), "old unsafe page");
     writeFileSync(join(files, "Report # %.txt"), "corrupted");
     f.state.calls = [];
@@ -40,7 +40,7 @@ test("unchanged resume repairs missing derivations, corrupt media, missing manif
     assert.match(readFileSync(join(f.root, "markdown", record.fname + ".md"), "utf8"), /Assistant answer/);
     assert.match(readFileSync(join(f.root, "html", record.fname + ".html"), "utf8"), /Assistant answer/);
     assert.equal(readFileSync(join(files, "Report # %.txt"), "utf8"), "synthetic original bytes");
-    rmSync(join(files, ".file-map.json"));
+    unlinkSync(join(files, ".file-map.json")); assert.equal(existsSync(join(files, ".file-map.json")), false);
     assert.equal((await f.run()).failedFiles, 0);
     const manifest = JSON.parse(readFileSync(join(files, ".file-map.json")));
     manifest.failed["file-one"] = { error: "prior failure" }; writeFileSync(join(files, ".file-map.json"), JSON.stringify(manifest));
@@ -147,7 +147,7 @@ test("case-only title updates never retire the newly published artifacts", async
 
 test("manifest write failure remains partial in the durable report", async () => {
   const f = fixture(); try {
-    await f.run(); rmSync(join(f.root, "archive-manifest.json")); mkdirSync(join(f.root, "archive-manifest.json"));
+    await f.run(); unlinkSync(join(f.root, "archive-manifest.json")); mkdirSync(join(f.root, "archive-manifest.json"));
     const report = await f.run(); assert.equal(report.status, "partial");
     const disk = JSON.parse(readFileSync(join(f.root, "logs", `export-report-${report.runId}.json`)));
     assert.equal(disk.status, "partial"); assert.ok(disk.errors.some(e => e.category === "manifest"));
