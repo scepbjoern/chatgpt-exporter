@@ -1,326 +1,68 @@
-# ChatGPT Exporter
+# ChatGPT Exporter — local archive review candidate
 
-A zero-dependency Node.js tool that exports **all** your ChatGPT data — conversations, projects (with uploaded files), and custom GPTs — to JSON, Markdown, and browseable HTML.
+A source-only fork for saving the ChatGPT conversation data the service actually returns as raw JSON, Markdown and a self-contained offline HTML folder. Start the exporter locally, complete a run, stop it, then open the archive's `index.html` by double-clicking. The viewer has navigation and **title search**, not full-text search.
 
-> **About this fork**
->
-> This repository is a fork of [ezwep/chatgpt-exporter](https://github.com/ezwep/chatgpt-exporter).
-> It keeps the original exporter and adds a number of features that are **currently specific to this fork**.
-> Those additions are documented separately below so it is clear which behavior may not exist in the upstream project.
+**Review status:** repairs are implemented and synthetic checks are being recorded in [TESTING.md](TESTING.md). A targeted additional external AI review is pending. No real-account export, complete Business workspace backup, professional security audit or production release is claimed. Check the exact repair commit and CI results before testing. Do not use upstream executables/npm packages as builds of this fork.
 
-![ChatGPT Exporter](screenshots/ui.png)
+## Origin and changes
 
-## Why this tool?
+This work starts at [moisescastellano/chatgpt-exporter](https://github.com/moisescastellano/chatgpt-exporter), commit `78efcdc396816997e843abbab58a966708b79dc9`, itself based on [ezwep/chatgpt-exporter](https://github.com/ezwep/chatgpt-exporter). Original authorship and the [MIT licence](LICENSE) remain. See [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md), [the finding matrix](docs/reviews/repair-matrix.md) and the sanitized [first](docs/reviews/initial-review.md) and [second AI review](docs/reviews/second-ai-review.md).
 
-OpenAI's built-in data export is slow, gives you a single massive JSON blob, and **doesn't include** custom GPT configurations or project resource files. This tool fills that gap.
+This fork replaces destructive updates with recoverable generations, verifies saved media size/hash, retries incomplete media, regenerates local views, binds new archives to a declared user/workspace, disables automatic deletion inference, removes internal ZIP creation and its byte buffers, restricts download destinations, protects local APIs and pre-renders safe offline HTML. Downloads are sequential to bound memory. Existing Markdown rendering options are retained.
 
-## Features
+## Run from source
 
-The base project provides:
-
-- **Conversations** — full message history with code blocks, images, and file attachments
-- **Projects** — metadata, instructions, uploaded resources (PDFs, documents), and all project conversations organized in subfolders
-- **Custom GPTs** — name, description, instructions, tools, and conversation starters
-- **3 output formats** — JSON (raw API data), Markdown (readable), HTML (browseable with sidebar)
-- **HTML viewer** — generated `index.html` with ChatGPT-style dark sidebar, project folders, and search
-- **Parallel downloads** — configurable concurrency (1–10)
-- **Date filter** — export only conversations within a specific creation-date range
-- **ZIP archive** — optionally bundle everything into a single `.zip`
-- **Keep awake** — prevents sleep on macOS (`caffeinate`), Windows (`SetThreadExecutionState`), and Linux (`systemd-inhibit`)
-- **Zero dependencies** — only built-in Node.js modules
-- **Web UI** — clean local interface, no terminal required after startup
-
-### Additional features in this fork
-
-These features have been added in this fork and may not be available in the upstream project:
-
-- **Smart Resume** — conversations are classified as new, updated, resumed, or failed. Existing JSON is reused when possible, while conversations changed since the previous export are downloaded again.
-- **Safer file downloads** — the ChatGPT bearer token is only sent to ChatGPT hosts, never to external signed download URLs.
-- **Windows-safe filenames** — exported conversation and file names are sanitized for Windows-compatible paths.
-- **Conservative rate limiting** — ChatGPT requests are paced, and the export stops immediately on the first ChatGPT HTTP `429` instead of continuing to generate more rate-limited requests. The UI reports the export as paused, preserves progress, and shows `Retry-After` when ChatGPT provides it.
-- **Selective Project export** — optionally choose specific Projects to export while the exporter still inventories all Projects for safe archived/deleted reconciliation.
-- **Archived/deleted conversation tracking** — archived conversations are kept under `archived/`; locally exported conversations that disappear from a complete remote inventory are moved to `deleted/` instead of being erased.
-- **ChatGPT-generated file export** — `sandbox:/...` links are resolved when possible, downloaded alongside conversation files, and mapped through `.file-map.json`.
-- **Regenerate Markdown** — rebuild Markdown from the already exported local JSON without a session token and without making ChatGPT requests.
-- **Offline Markdown renderer** — `scripts/render-markdown.js` uses the same Markdown converter as the web UI.
-- **Conversation metadata in Markdown** — optional created, updated, exported, and conversation-link fields.
-- **Configurable Markdown dates** — ISO (`YYYY-MM-DD`) or European (`DD/MM/YYYY`), with 24-hour timestamps.
-- **Message timestamps and model names** — optional per-turn metadata.
-- **Custom Prompt / Response labels** — change the Markdown headings without modifying the raw JSON.
-- **Conversation branch selection** — export the current ChatGPT branch (default) or every branch stored in the conversation tree.
-- **Grouped assistant turns** — intermediate assistant messages and the final answer are kept under a single `Response` heading for each turn.
-- **Activity summaries** — optional ChatGPT activity summaries are rendered as quoted **Worked** blocks instead of separate headings, keeping the Markdown table of contents clean.
-- **Reliable attachment mapping** — downloaded attachments are mapped by their real ChatGPT file ID rather than guessed from filenames.
-- **Unavailable attachments remain visible** — if an old ChatGPT attachment can no longer be downloaded, the Markdown still records its original name instead of silently dropping it.
-- **Attachment diagnostics** — `.file-map.json` records successfully downloaded files and files that ChatGPT no longer makes available.
-
-The raw conversation JSON remains the canonical local copy. Markdown can therefore be regenerated later with different formatting options without downloading the conversation again.
-
-## Documentation
-
-See the [User Manual](USER_MANUAL.md) for detailed usage, Smart Resume behavior, Markdown options, archived/deleted conversations, attachments, and ChatGPT-generated `sandbox:/...` files.
-
-See [Rate limiting notes](RATE_LIMITING.md) for the exporter strategy, the community-observed token-bucket model, and the distinction between confirmed behavior and empirical assumptions.
-
-## Output structure
+Use **Node.js 24**; the recorded test version is **24.11.0**. Windows and macOS are target systems. No runtime npm install is needed: the pinned Markdown parser and its licence are vendored locally. Browser-test dependencies are development-only.
 
 ```text
-chatgpt-export/
-├── index.html        ← HTML viewer with search and iframe navigation
-├── json/             ← raw conversation JSON
-├── markdown/         ← readable Markdown per conversation
-├── html/             ← browseable HTML with conversation sidebar
-├── files/
-│   └── Conversation Name_<id>/
-│       ├── .file-map.json  ← exact ChatGPT file ID → local file mapping
-│       └── ...             ← downloaded images and attachments
-├── projects/
-│   └── Project Name/
-│       ├── project-info.md
-│       ├── resources/    ← uploaded project files (PDFs, images, etc.)
-│       ├── json/
-│       ├── markdown/
-│       ├── html/
-│       └── files/
-├── archived/
-│   ├── json/
-│   ├── markdown/
-│   ├── html/
-│   └── files/
-├── deleted/
-│   ├── json/
-│   ├── markdown/
-│   ├── html/
-│   └── files/
-├── gpts/             ← your custom GPTs as Markdown
-└── logs/             ← export run logs
-```
-
-## Installation
-
-### Using this fork
-
-The fork-specific features documented above are available when running this repository from source:
-
-```bash
-git clone https://github.com/moisescastellano/chatgpt-exporter.git
+git clone --branch repair/offline-preserving-export https://github.com/scepbjoern/chatgpt-exporter.git
 cd chatgpt-exporter
-npm start
+node server.js
 ```
 
-Requires [Node.js 18+](https://nodejs.org/).
+Open the complete private launch URL printed by the process. Its random fragment authorizes the local interface; the page removes that fragment from the address bar. Reloading requires reopening the complete launch URL. Keep that URL private and stop the process with Ctrl+C after use. There is no published executable or npm release of this repair candidate.
 
-> **Important:** the upstream Windows release and the `chatgpt-full-exporter` npm package belong to the original project. Unless those distributions explicitly incorporate the fork changes, they should not be expected to include the features listed under **Additional features in this fork**.
+Paste your session JSON from `https://chatgpt.com/api/auth/session` into the local page and supply the **explicit workspace/account ID** for the intended workspace. The pasted session must contain `accessToken` and `user.id`. Obtain the actual selected workspace ID from the authenticated service's account selection or your administrator; do not guess it. The session field is cleared after parsing; a project-picker credential cache expires after five minutes. Neither the ChatGPT token nor session JSON is saved in the archive.
 
-The browser opens automatically at `http://127.0.0.1:8523`.
+Choose a **new, empty local output folder outside cloud synchronization**. The exporter writes `archive-identity.json` on first use and refuses a different declared user/workspace. It sends the workspace ID as `ChatGPT-Account-Id`; this routing still requires a separate real inventory comparison. A synthetic identity test does not verify how the live Business service routes requests.
 
-### Upstream installation options
+An old unbound export is deliberately not adopted as the same account automatically. Use **Regenerate local views** to rebuild its local MD/HTML without a token, or use a new empty folder for new network exports. Back up old folders first. The regenerated viewer does not prove the old archive's original completeness.
 
-If you prefer the packaged releases from the original project rather than the additional features in this fork, see [ezwep/chatgpt-exporter](https://github.com/ezwep/chatgpt-exporter).
+## What the archive contains
 
-The upstream project currently documents these installation methods:
+- Raw JSON for successfully obtained conversations, always retained as the comparison source. JSON is serialized service data, not a byte-identical HTTP response and not proof of service completeness.
+- Markdown with the existing branch, source-link, metadata, label and activity options. HTML is a separate tree view; it need not display exactly the same branch selection as Markdown.
+- Pre-rendered HTML with local navigation and title search. Assistant/tool text does not depend on browser JavaScript or a CDN. Raw HTML is displayed inertly. Remote images are not automatically loaded; ordinary external links work only when clicked.
+- Recognized available attachments and sandbox outputs, with `.file-map.json` size/SHA256 records. Original HTML/SVG or other active files remain original bytes and must be opened with care; viewer protections do not sanitize originals or arbitrary Markdown readers.
+- Owned-project metadata/resources returned by the inventory, GPT raw metadata plus Markdown, durable reports, recoverable previous generations and an archive manifest.
 
-#### Windows standalone
+**Not included:** GPT Knowledge files, shared projects, all historical sandbox versions, Codex tasks/local sessions, an import into another chat service, unavailable/expired server files or a guaranteed complete set of audio/video/new content types. GPT discovery metadata is not a full GPT configuration export. The latest available file for a reused sandbox path can be linked by several messages.
 
-1. Download `chatgpt-exporter-win.zip` from the [upstream latest release](https://github.com/ezwep/chatgpt-exporter/releases/latest)
-2. Right-click the zip → **Extract All**
-3. Double-click `chatgpt-exporter-win.exe`
+## Completion, recovery and ZIP
 
-#### npx
+Read the final on-screen status and the matching `logs/export-report-<runId>.json` or `regeneration-report-<runId>.json`. A partial status is not completion, even if some conversations succeeded. `archive-operation.json` marks an operation in progress or its final status. A stopped process can leave a stale manifest; rerun to recover before treating it as current.
 
-With Node.js 18+ installed:
+Updates are staged; replaced targets and retired source artifacts remain under `superseded/` with journals. A locked next run rolls back uncommitted publication or completes committed retirement. This is recoverability across process interruption, **not simultaneous multi-file atomicity or a guarantee against power failure, disk corruption/full disks or other programs modifying the archive**. Never manually remove a lock while a writer is active. No automatic retention/pruning occurs: previous generations consume disk space. Preserve a separate backup before cleanup.
 
-```bash
-npx chatgpt-full-exporter
-```
+A conversation absent from the current inventory stays at its prior location and generates a warning; it is not automatically marked deleted. Existing `deleted/` folders remain readable. A schema/page error prevents a clean completion. Re-run later after a 429; saved bytes remain available and incomplete files are retried.
 
-These methods install/run the **upstream version**, not necessarily this fork.
-
-### Get your session token
-
-After the UI opens in your browser:
-
-1. Open [chatgpt.com/api/auth/session](https://chatgpt.com/api/auth/session) in a new tab (log in first if needed)
-2. Select all (`Cmd+A` on macOS, `Ctrl+A` on Windows/Linux), copy, and paste into the text area
-3. Choose your output folder
-4. Click **Export conversations**
-
-Re-running an export uses Smart Resume: unchanged conversations reuse the existing local JSON, while conversations detected as changed are refreshed.
-
-## Export options
-
-Click **Export options** to expand the main export settings:
-
-![ChatGPT Exporter — export options](screenshots/ui-options.png)
-
-| Option | Description |
-|--------|-------------|
-| Conversations / Projects / GPTs | Toggle which categories to export. Projects can also be narrowed with **Choose...** |
-| JSON / Markdown / HTML | Toggle output formats |
-| From / Until | Filter conversations by creation date (leave empty = export all) |
-| Keep computer awake | Prevent sleep during long exports |
-| Create ZIP archive | Bundle output into a `.zip` file |
-
-> **Note:** JSON is always written to disk because it is the canonical local representation used by Smart Resume and Markdown regeneration. It is only included in the ZIP when the JSON format is enabled.
-
-### Selecting specific Projects
-
-Projects default to **all Projects**, preserving the original one-click behavior.
-
-Use **Choose...** next to Projects to load the lightweight Project inventory and select only the Projects you want to export. The selector supports **Select all**, **Clear all**, and individual checkboxes.
-
-This selection limits Project metadata, resources, and full conversation downloads. The exporter still inventories all Projects internally when needed so that unselected Projects are never mistaken for deleted conversations.
-
-### Markdown options in this fork
-
-| Option | Description |
-|--------|-------------|
-| Conversation metadata | Add created, updated, exported, and conversation-link fields |
-| Message timestamps | Show timestamps for prompts, responses, and optional activity summaries |
-| Model name | Show the model used for assistant turns |
-| Date format | ISO (`YYYY-MM-DD`) or European (`DD/MM/YYYY`) |
-| Conversation branch | Export only the current branch or all branches |
-| User label | Customize the prompt heading |
-| Assistant label | Customize the response heading |
-| Activity summaries (Worked) | Include visible ChatGPT activity summaries as quoted **Worked** blocks |
-
-### Regenerate Markdown
-
-**Regenerate Markdown** rebuilds `.md` files from the JSON already stored in the export directory.
-
-It:
-
-- does **not** require a ChatGPT session token;
-- makes **no ChatGPT requests**;
-- uses the same Markdown options as a normal export;
-- can reuse exact local attachment links stored in `.file-map.json`;
-- leaves unavailable attachments visible by name without inventing a local link.
-
-### Offline Markdown rendering
-
-A single conversation JSON can also be rendered from the command line:
-
-```bash
-node scripts/render-markdown.js conversation.json output.md
-```
-
-Available options include:
+After a finished, stopped run, copy the whole folder or use Explorer **Compress to ZIP** / Finder **Compress**. Include dotfiles such as `.file-map.json`, reports and `superseded/`. Extract to a different folder and check saved bytes:
 
 ```text
---conversation-metadata
---timestamps
---model-name
---thought-process
---date-format <iso|european>
---branch <current|all>
---user-label <label>
---assistant-label <label>
+node scripts/verify-archive.mjs <extracted-folder>
 ```
 
-`--thought-process` corresponds to **Activity summaries (Worked)** in the web UI.
+The verifier checks manifest entries, sizes and SHA256. It does not prove remote completeness or inspect extra files. Open the extracted `index.html` as well. Safeguard the archive as private data; it is not encrypted by this tool.
 
-## Requirements
-
-- **This fork from source:** Node.js 18+
-- Supported platforms: macOS, Linux, Windows
-- **Upstream Windows standalone:** no Node.js installation required
-
-## Building the Windows executable yourself
-
-The upstream project includes a Windows executable build process:
-
-```bash
-npm run build
-```
-
-This bundles `server.js` with esbuild and packages it with `pkg`. Output lands in `dist/chatgpt-exporter-win.exe` together with a `dist/public/` folder.
-
-If you build from this fork, verify the resulting executable before distributing it; the primary tested workflow for the fork-specific changes is running from source.
-
-## Troubleshooting
-
-Start the server in debug mode to capture every HTTP request:
-
-```bash
-node server.js --debug
-```
-
-The `debug.log` file is created alongside the server script. You can also view it at:
+## Checks and limits
 
 ```text
-http://127.0.0.1:8523/debug-log
-```
-
-> **Privacy note:** Debug logs contain API endpoint URLs including conversation and file IDs. Do not share debug logs publicly without reviewing them first.
-
-### HTTP 429 / rate limiting
-
-This fork deliberately stops ChatGPT API activity when the first ChatGPT HTTP `429` is received. The UI reports the run as **paused**, keeps the data already written to disk, shows processed/remaining counts when available, and displays `Retry-After` when ChatGPT returns that header.
-
-Start another export later using the same output directory. Smart Resume will reuse conversations already saved locally and continue with the remaining work.
-
-A `429` from an external signed file-download host does not by itself stop all ChatGPT requests.
-
-The exact ChatGPT internal limit is undocumented. A community investigation in another exporter project suggests a token-bucket model with an initial capacity of roughly 200–250 requests and a refill around one request per minute, but those figures are empirical and explicitly require re-verification. See [Rate limiting notes](RATE_LIMITING.md) for details and source links.
-
-### Old or unavailable attachments
-
-ChatGPT may retain a conversation's attachment metadata after the underlying file can no longer be downloaded.
-
-In that case:
-
-- the Markdown still shows `[Attachment: original-name.ext]`;
-- `.file-map.json` records the failed download;
-- no guessed or potentially incorrect local link is generated.
-
-## Development and tests
-
-The fork keeps its automated regression suite under `tests/`.
-
-Run all tests with:
-
-```bash
+npm ci --ignore-scripts
 npm test
+npx --no-install playwright install chromium
+npm run test:browser
 ```
 
-The server has been split into focused modules under `lib/`; `server.js` is now primarily the application entrypoint and HTTP wiring.
+CI runs synthetic Node/browser checks on Windows and macOS with Node 24.11.0; see [TESTING.md](TESTING.md) for actual outcomes and open manual checks. Playwright WebKit is not the installed Safari browser. Corporate proxy behavior, live workspace inventories, real-service CDN compatibility, sleep prevention, long paths and very large real archives remain separate checks.
 
-## How it works
-
-The tool uses ChatGPT's internal API endpoints (the same ones the web app uses) with your session token. It fetches conversation lists, individual conversations with full message trees, project metadata and resources, and custom GPT configurations.
-
-No third-party API is needed for the export itself. The session token is only sent to ChatGPT hosts; external signed file URLs are downloaded without forwarding that token.
-
-In this fork, the raw JSON is treated as the canonical local conversation data. Markdown is a derived format and can be regenerated offline. Downloaded conversation attachments have an accompanying `.file-map.json` so Markdown regeneration can reproduce exact local file links without filename guessing.
-
-## Disclaimer
-
-**Use at your own risk.** This tool is provided as-is, without warranty of any kind.
-
-- **Unofficial API** — This tool uses ChatGPT's internal web API endpoints, which are undocumented and not part of the official OpenAI API. These endpoints may change, break, or be blocked at any time without notice.
-- **Terms of Service** — Using internal API endpoints may violate [OpenAI's Terms of Use](https://openai.com/policies/terms-of-use). You are solely responsible for ensuring your use complies with applicable terms and laws.
-- **Session token security** — Your session token grants full access to your ChatGPT account. This tool processes it locally and never transmits it to any third party, but you should **never share your token** with anyone. Treat it like a password.
-- **Your own data** — This tool only accesses your own conversations, projects, and GPTs. It is intended for personal data portability, not for accessing other users' data.
-- **No affiliation** — This project is not affiliated with, endorsed by, or associated with OpenAI in any way.
-- **Rate limiting** — Excessive use may trigger rate limits or temporary blocks on your ChatGPT account. This fork includes pacing and stops ChatGPT requests on the first `429`, but no guarantees are made.
-- **Data accuracy** — Exported data is provided as-is from the API. Attachments may no longer be downloadable even when their metadata remains present in a conversation.
-
-## Credits
-
-This fork is based on [**ezwep/chatgpt-exporter**](https://github.com/ezwep/chatgpt-exporter) and retains the upstream project's MIT license and attribution.
-
-The original project was inspired by the browser console export script by [**ocombe**](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5).
-
-Fork-specific changes are maintained independently and are not implied to be part of, supported by, or accepted into the upstream project.
-
-## Support
-
-I do not request donations for maintaining this fork.
-
-If you find the project useful and would like to support its development, please consider supporting **ezwep, the author of the original project**, through the upstream Ko-fi:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/ezwep)
-
-## License
-
-MIT
+API JSON is bounded to 32 MiB and downloads to 256 MiB each, with timeouts. Larger files fail visibly. HTTPS downloads are restricted to the exact ChatGPT origin or the documented public CDN suffixes, validated and DNS-pinned per redirect. Production transport uses direct HTTPS and does not implement corporate HTTPS proxies. See [SECURITY.md](SECURITY.md) for the trust boundaries.
