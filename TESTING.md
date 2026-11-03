@@ -2,6 +2,10 @@
 
 ## Post-review follow-up, 2026-11-03
 
+Exact executable code/test/workflow commit: `93af5c36b81a329d33aa675da656c06c603e01f6` (includes the disabled-view original-media follow-up to `a795d76`). All local results immediately below were rerun on that code. Later Markdown-only documentation changes do not change the tested executable tree.
+
+Current [CI run 41661167548](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41661167548): [Windows job](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41661167548/job/126004429461) passed the core suite plus Chromium deep ZIP, offline archive and UI. The [macOS job](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41661167548/job/126004430026) is queued with no assigned runner or executed steps at this documentation check; it is not a pass. Read the live job result before a Mac trial. Earlier a40e6cc macOS cancellation is recorded below rather than replaced with the older 91a859d success.
+
 The working tree containing the N1–N9 follow-up fixes passed all **24 test files** on Windows / Node.js 24.11.0. This includes the new archive-store and runner regressions, operation-marker crash cases, slow-progress/stalled network cases and collision tests. Exact committed source and CI results are recorded in the delivery manifest and follow-up section below.
 
 The coordinating implementation agent ran offline archive and local UI checks in Chromium 145.0.7632.6, Edge 156.0.4314.58, Firefox 146.0.1 and Playwright WebKit 26.0: all eight passed. The separate Chromium `tests/browser-depth.mjs` also passed: 95-character source root, 105-character extracted root, longest paths 229/239 characters, actual native Windows ZIP/extract, hash verification, index/project navigation and opening the attachment with exact bytes. This is nine browser executions, not nine additional core test files. WebKit uses HTTP(S) blocking, not its broken file-page offline emulation.

@@ -2,6 +2,8 @@
 
 Review the changes after your a40e6cc review. This is a bounded follow-up, not a new full audit. Use the bundle manifest for exact reviewed and repaired source commits and file hashes. The prior reviewed code is a40e6cce9015656ed0370e52e4b4a0ced5478fad; its delivery tree is 7f3fce83f2a61cb4c5631430cb86e5142315a45b (only two later Markdown changes).
 
+Follow-up executable code/test/workflow commit: 93af5c36b81a329d33aa675da656c06c603e01f6. Local24-file suite and nine browser executions passed. Windows CI run41661167548 passed; its macOS job was queued without execution at preparation time. Check that actual job result independently. A queued job is not Mac evidence.
+
 Read docs/reviews/opus-repair-followup.md, TESTING.md, SECURITY.md and the follow-up diff first. Challenge those claims against code and executed behavior. The original review and reproduction hashes are recorded in the response. This is AI-assisted review, not professional audit or production approval.
 
 Priorities:
