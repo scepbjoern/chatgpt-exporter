@@ -153,3 +153,16 @@ test("manifest write failure remains partial in the durable report", async () =>
     assert.equal(disk.status, "partial"); assert.ok(disk.errors.some(e => e.category === "manifest"));
   } finally { f.cleanup(); }
 });
+
+test("a readable-view failure retains newly obtained raw JSON without claiming a completed generation", async () => {
+  const f = fixture(); try {
+    f.state.conversations[0].create_time = "invalid-timestamp";
+    const report = await f.run();
+    assert.equal(report.status, "partial"); assert.equal(report.failed, 1);
+    assert.equal(collectLocalConversations(f.root).length, 0);
+    assert.equal(report.retainedUnpublishedRaw.length, 1);
+    const saved = JSON.parse(readFileSync(report.retainedUnpublishedRaw[0]));
+    assert.equal(saved.conversation_id, "sameprefix-one");
+    assert.equal(saved.mapping.answer.message.content.parts[0], "Assistant answer");
+  } finally { f.cleanup(); }
+});
