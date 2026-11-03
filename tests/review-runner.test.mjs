@@ -64,6 +64,25 @@ test("a rate limit still indexes conversations published earlier in that run", a
   } finally { f.cleanup(); }
 });
 
+test("disabled views keep old media when the same live media filename receives new bytes", async () => {
+  const f = fixture(); try {
+    await f.run(); f.state.conversations[0].update_time = 30;
+    const report = await f.run({ formats: { html: false, markdown: false } }, { downloadFile: async (...args) => {
+      writeFileSync(args.at(-1), "new media bytes"); return { filename: "Report # %.txt" };
+    } });
+    assert.equal(report.status, "complete-within-requested-scope");
+    const record = collectLocalConversations(f.root)[0];
+    assert.equal(readFileSync(join(record.baseDir, "files", record.fname, "Report # %.txt"), "utf8"), "new media bytes");
+    const html = join(record.baseDir, "html", record.fname + ".html");
+    const content = readFileSync(html, "utf8");
+    const link = content.match(/href="(\.\.\/files\/[^\"]+)"/)[1];
+    assert.equal(readFileSync(join(dirname(html), decodeURIComponent(link)), "utf8"), "synthetic original bytes");
+    assert.match(content, /files\/view-/); checkNavigation(f.root);
+    const md = readFileSync(join(record.baseDir, "markdown", record.fname + ".md"), "utf8");
+    assert.match(md, /files\/view-/);
+  } finally { f.cleanup(); }
+});
+
 test("invalid dates do not prevent raw or readable view publication", async () => {
   const f = fixture(); try {
     f.state.conversations[0].create_time = "invalid-date";
