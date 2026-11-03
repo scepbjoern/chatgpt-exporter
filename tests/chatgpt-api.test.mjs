@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
+import { setTimeout as delay } from "node:timers/promises";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -203,4 +206,141 @@ test("declared sizes are checked before reading and compressed errors still latc
 test("test origins cannot silently relax the production transport", async () => {
   const client = createApiClient({ apiBase: "http://127.0.0.1:1/backend-api", testOrigins: ["http://127.0.0.1:1"], minIntervalMs: 0 });
   await assert.rejects(client.apiGet("conversations", "FAKE"), /explicit injected transport/);
+});
+
+
+test("N3 steady streamed downloads outlive the legacy phase timeout and preserve bytes/hash", async () => {
+  const expected = Buffer.concat(Array.from({ length: 20 }, (_, index) => Buffer.alloc(10, index)));
+  const server = await mockServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "application/octet-stream" });
+    let index = 0;
+    const interval = setInterval(() => {
+      res.write(expected.subarray(index * 10, ++index * 10));
+      if (index === 20) { clearInterval(interval); res.end(); }
+    }, 50);
+    res.on("close", () => clearInterval(interval));
+  });
+  const dir = await mkdtemp(join(tmpdir(), "exporter-steady-"));
+  try {
+    // This is the review reproduction: 1 s of progress with timeoutMs=300 ms.
+    const client = localClient(server.origin, { timeoutMs: 300, totalTimeoutMs: 3000 });
+    const result = await client.apiDownloadTo(`${server.origin}/file`, "FAKE", join(dir, "file.bin"));
+    assert.deepEqual(await readFile(join(dir, "file.bin")), expected);
+    assert.equal(result.size, 200);
+    assert.equal(result.sha256, createHash("sha256").update(expected).digest("hex"));
+    assert.deepEqual(await readdir(dir), ["file.bin"]);
+  } finally { await server.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test("N3 idle body aborts the connection, removes partial output and preserves old bytes", async () => {
+  let closed;
+  const disconnected = new Promise((resolve) => { closed = resolve; });
+  const server = await mockServer((req, res) => {
+    res.writeHead(200); res.write("first bytes");
+    res.on("close", closed);
+  });
+  const dir = await mkdtemp(join(tmpdir(), "exporter-idle-"));
+  try {
+    const destination = join(dir, "file.bin");
+    const old = Buffer.from("previously archived bytes");
+    await writeFile(destination, old);
+    const client = localClient(server.origin, { headersTimeoutMs: 500, bodyIdleTimeoutMs: 100, totalTimeoutMs: 3000 });
+    await assert.rejects(client.apiDownloadTo(`${server.origin}/file`, "FAKE", destination), /body idle timeout/);
+    let closeTimer;
+    try {
+      await Promise.race([disconnected, new Promise((resolve, reject) => { closeTimer = setTimeout(() => reject(new Error("idle timeout did not close transport")), 1000); })]);
+    } finally { clearTimeout(closeTimer); }
+    assert.deepEqual(await readFile(destination), old);
+    assert.deepEqual(await readdir(dir), ["file.bin"]);
+  } finally { await server.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test("N3 an overall cap still bounds continuously progressing bodies", async () => {
+  const server = await mockServer((req, res) => {
+    res.writeHead(200); res.write("first");
+    const interval = setInterval(() => res.write("progress"), 20);
+    res.on("close", () => clearInterval(interval));
+  });
+  try {
+    const client = localClient(server.origin, { headersTimeoutMs: 500, bodyIdleTimeoutMs: 150, totalTimeoutMs: 250 });
+    await assert.rejects(client.apiFetchBinary(`${server.origin}/file`, "FAKE"), /Overall response deadline/);
+  } finally { await server.close(); }
+});
+
+test("N3 header/DNS budget spans redirects and does not reset at each hop", async () => {
+  let requests = 0, lastSignal;
+  const client = createApiClient({
+    headersTimeoutMs: 300, bodyIdleTimeoutMs: 500, totalTimeoutMs: 2000,
+    lookup: async () => { await delay(25); return [{ address: "93.184.216.34" }]; },
+    fetch: async (url, options) => {
+      requests++; lastSignal = options.signal; await delay(150);
+      return new Response(null, { status: 302, headers: { Location: "https://files.oaiusercontent.com/next" } });
+    },
+  });
+  await assert.rejects(client.apiFetchBinary("https://files.oaiusercontent.com/start", "FAKE"), /headers timed out|DNS lookup timed out/);
+  assert.equal(requests, 2);
+  assert.equal(lastSignal.aborted, true);
+});
+
+test("N3 completion and cancellation clear phase timers and external abort listeners", async () => {
+  let lastSignal;
+  const client = createApiClient({
+    headersTimeoutMs: 80, bodyIdleTimeoutMs: 80, totalTimeoutMs: 100,
+    lookup: async () => [{ address: "93.184.216.34" }],
+    fetch: async (url, options) => { lastSignal = options.signal; return new Response("complete"); },
+  });
+  assert.equal((await client.apiFetchBinary("https://files.oaiusercontent.com/file", "FAKE")).buffer.toString(), "complete");
+  await delay(130);
+  assert.equal(lastSignal.aborted, false, "a completed request must not be aborted later by an uncleared timer");
+  const external = new AbortController();
+  const response = await client.debugFetch("https://chatgpt.com/backend-api/body", { signal: external.signal });
+  await response.text();
+  external.abort(new Error("after completion"));
+  assert.equal(lastSignal.aborted, false, "external abort listener must be removed on completion");
+  const pending = await client.debugFetch("https://chatgpt.com/backend-api/body");
+  await pending.body.cancel();
+  assert.equal(lastSignal.aborted, true, "cancelling the body must abort its transport");
+});
+
+
+test("N3 pinned request adapter receives checked DNS and a signal lasting through the body", async () => {
+  const requests = [];
+  const client = createApiClient({
+    headersTimeoutMs: 300, bodyIdleTimeoutMs: 300, totalTimeoutMs: 3000, minIntervalMs: 0,
+    lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+    // In-memory request adapter exercises pinnedFetch's native stream boundary.
+    // It does not establish real TLS/certificate or remote provider behavior.
+    httpsRequest: (url, options, onResponse) => {
+      options.lookup("chatgpt.com", { all: true }, (error, addresses) => {
+        assert.equal(error, null);
+        assert.deepEqual(addresses, [{ address: "93.184.216.34", family: 4 }]);
+      });
+      const request = new EventEmitter();
+      const record = { signal: options.signal, aborted: false };
+      requests.push(record);
+      request.end = () => {
+        const incoming = new PassThrough();
+        incoming.statusCode = 200; incoming.rawHeaders = [];
+        onResponse(incoming); incoming.write("start");
+        let interval;
+        const aborted = () => { record.aborted = true; incoming.destroy(options.signal.reason); request.emit("error", options.signal.reason); };
+        options.signal.addEventListener("abort", aborted, { once: true });
+        if (url.pathname === "/progress") {
+          let count = 0;
+          interval = setInterval(() => {
+            incoming.write("progress");
+            if (++count === 12) { clearInterval(interval); incoming.end(); }
+          }, 40);
+        }
+        incoming.on("close", () => { clearInterval(interval); options.signal.removeEventListener("abort", aborted); });
+      };
+      return request;
+    },
+  });
+  const result = await client.apiFetchBinary("https://chatgpt.com/progress", "FAKE_NATIVE_TOKEN");
+  assert.equal(result.buffer.toString(), "start" + "progress".repeat(12));
+  assert.equal(requests[0].signal.aborted, false);
+  await assert.rejects(client.apiFetchBinary("https://chatgpt.com/stall", "FAKE_NATIVE_TOKEN"), /body idle timeout/);
+  assert.equal(requests[1].signal.aborted, true);
+  assert.equal(requests[1].aborted, true, "the request transport must receive the body-timeout abort");
 });

@@ -3,9 +3,9 @@
 This is a source-only review candidate. Read [README.md](README.md) and [SECURITY.md](SECURITY.md) before a real-account trial.
 
 1. Install a supported Node.js 24 release (recorded tests use24.11.0), obtain this fork's repair branch and run `node server.js`.
-2. Open the complete private launch URL. Paste the session JSON, enter the intended explicit workspace/account ID and choose an empty local output folder.
+2. Open the complete private launch URL. Paste the session JSON, enter the intended explicit workspace/account ID and choose a short empty local output folder outside cloud synchronization. A new live artifact path above 250 characters fails with a request to use a shorter root.
 3. Before any broad real export, compare the live inventory with the selected workspace: active/archived counts, owned project list and known conversation titles. This live routing check has not been performed by the automated tests.
-4. Select conversations/projects/GPT metadata, output formats and optional Markdown fields. Raw JSON is always saved. Download pace is one file at a time; keep-awake is optional and initially off.
+4. Select conversations/projects/GPT metadata, output formats and optional Markdown fields. Raw JSON is always saved. A disabled existing view remains an older snapshot; enable it or regenerate to refresh it. Download pace is one file at a time; keep-awake is optional and initially off.
 5. Start and wait for the durable final report. Closing a progress connection does not cancel the running export; leave the process running until it finishes or stop it explicitly. Never run two writers on the same folder.
 6. If partial, inspect the final report categories. After a429, wait before rerunning. Missing/failed media are retried; previously saved bytes survive unsuccessful replacement. Files above the configured bounds remain errors, not successes.
 7. Stop the exporter. Double-click the archive's `index.html`. Search by title, expand projects, open conversation text and project info, and test expected attachments. External links open on deliberate clicks; no viewer library is downloaded.

@@ -84,3 +84,23 @@ test("Index renders project info offline and decodes a long title exactly once",
     assert.ok(!/<(?:img|svg)\b/.test(info));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("Index excludes unsafe legacy pages and renderer markers quoted outside actual head metadata", () => {
+  const dir = mkdtempSync(join(tmpdir(), "exporter-legacy-html-"));
+  try {
+    const quotedMarker = 'name="exporter-html-version" content="2"';
+    for (const group of ["html", "archived/html", "deleted/html", "projects/Legacy/html"]) {
+      mkdirSync(join(dir, group), { recursive: true });
+      const legacy = `<script src="https://example.invalid/legacy.js"></script>`;
+      writeFileSync(join(dir, group, "legacy.html"), `<!DOCTYPE html><html><head><title>Unsafe legacy</title></head><body>${legacy}</body></html>`);
+      writeFileSync(join(dir, group, "body-marker.html"), `<!DOCTYPE html><html><head><title>Quoted marker</title></head><body><pre>${quotedMarker}</pre>${legacy}</body></html>`);
+      writeFileSync(join(dir, group, "comment-marker.html"), `<!DOCTYPE html><html><head><!-- <meta ${quotedMarker}> --><title>Comment marker</title></head><body>${legacy}</body></html>`);
+      writeFileSync(join(dir, group, "script-marker.html"), `<!DOCTYPE html><html><head><script>const marker='<meta ${quotedMarker}>';</script><title>Script marker</title></head><body>${legacy}</body></html>`);
+      writeFileSync(join(dir, group, "current.html"), conversationToHtml(syntheticConversation()));
+    }
+    generateExportIndex(dir, []);
+    const index = readFileSync(join(dir, "index.html"), "utf8");
+    for (const omitted of ["legacy.html", "body-marker.html", "comment-marker.html", "script-marker.html"]) assert.ok(!index.includes(omitted), omitted);
+    for (const group of ["html", "archived/html", "deleted/html", "projects/Legacy/html"]) assert.ok(index.includes(`href="${group}/current.html"`), group);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

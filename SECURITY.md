@@ -101,8 +101,9 @@ connects directly and does not implement authenticated/corporate proxy support.
 Live provider compatibility, corporate network routing and all possible signed
 content-host variants have not been established by synthetic tests.
 
-Defaults are a 32 MiB API response limit, a 256 MiB download limit and a 60-second
-request deadline covering DNS, headers and body consumption. Downloads stream to
+Defaults are a 32 MiB API response limit, a 256 MiB download limit, a cumulative
+60-second DNS/connection/header budget across redirects, a 60-second body idle
+timeout and a 30-minute total cap. Progress resets the idle timer. Downloads stream to
 unique partial files before publication and compute SHA256. JSON still requires
 memory up to the response limit; archive inventories/manifests and recovery copies
 also consume memory/disk. Limits can prevent a legitimate large item from exporting;

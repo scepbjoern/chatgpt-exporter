@@ -24,6 +24,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npx --no-install playwright install chromium
+      - run: node tests/browser-depth.mjs
       - run: node tests/browser-offline.mjs
       - run: node tests/browser-ui.mjs
       - name: Install macOS WebKit

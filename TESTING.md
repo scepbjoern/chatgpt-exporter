@@ -1,5 +1,15 @@
 # Test record
 
+## Post-review follow-up, 2026-11-03
+
+The working tree containing the N1–N9 follow-up fixes passed all **24 test files** on Windows / Node.js 24.11.0. This includes the new archive-store and runner regressions, operation-marker crash cases, slow-progress/stalled network cases and collision tests. Exact committed source and CI results are recorded in the delivery manifest and follow-up section below.
+
+The coordinating implementation agent ran offline archive and local UI checks in Chromium 145.0.7632.6, Edge 156.0.4314.58, Firefox 146.0.1 and Playwright WebKit 26.0: all eight passed. The separate Chromium `tests/browser-depth.mjs` also passed: 95-character source root, 105-character extracted root, longest paths 229/239 characters, actual native Windows ZIP/extract, hash verification, index/project navigation and opening the attachment with exact bytes. This is nine browser executions, not nine additional core test files. WebKit uses HTTP(S) blocking, not its broken file-page offline emulation.
+
+The new deep-path test is configured in Windows/macOS CI. Installed Safari, Explorer/Finder graphical ZIP, real SMB, actual antivirus/sync locks, production TLS/CDN and live-account completeness remain untested. Windows system-tar invocation was also verified under Git Bash by the delegated implementation agent. All data and credentials are synthetic.
+
+The completed targeted Opus review is summarized in [the response](docs/reviews/opus-repair-followup.md). It found real defects in the prior reviewed tree; the follow-up changes themselves await targeted review. Records below are **historical a40e6cc evidence**, not a claim that the new tree was tested by Opus.
+
 Date: 2026-11-03. Repair code/test/workflow commit: `a40e6cce9015656ed0370e52e4b4a0ced5478fad`. Later delivery changes update Markdown documentation only. This is a source review candidate, not a production or completeness approval.
 
 ## Baseline and test assessment
@@ -32,7 +42,7 @@ Playwright WebKit's offline emulation rejects even a trivial local `file:` page.
 | Platform | Result |
 | --- | --- |
 | [Windows hosted runner](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41649742581/job/125964425439) | Passed: Node suite, Chromium archive and UI |
-| [macOS hosted runner](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41649742581/job/125964425266) | Queued for the latest code revision at handoff; not claimed passed. The preceding core revision passed the Node suite, Chromium archive/UI and WebKit archive/UI (see below). |
+| [macOS hosted runner](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41649742581/job/125964425266) | Cancelled after waiting, with no steps executed. Overall run failed. No macOS evidence for a40e6cc; earlier core revision results remain separate. |
 
 The Windows-only alias test is explicitly skipped on macOS; the other suite files run there. The macOS workflow also executes the archive and UI in Playwright WebKit. Pinned Actions and a locked development dependency are used. No release workflow is enabled. Documentation-only changes do not rerun the same executable checks.
 
@@ -53,10 +63,10 @@ npm run test:browser
 
 Other installed engines use `CGE_BROWSER_ENGINE=firefox` or `webkit`; Edge uses `CGE_BROWSER_CHANNEL=msedge`. The two browser scripts are separate commands and are not included in the 22 test-file count.
 
-Still open: the additional targeted Opus 5.5 review; authentic Business workspace routing/inventory comparison; small real-data content/media validation and later broad completeness checks; installed Safari/manual macOS archive use, OS GUI ZIP/copy and deep Windows path variants; live production HTTPS/TLS/CDN compatibility and corporate network requirements; hardware/power/disk-full failures; all historical sandbox versions. Corporate proxies are not implemented. Shared projects and GPT Knowledge remain outside scope.
+Still open: review of the post-Opus corrections; authentic Business workspace routing/inventory comparison; small real-data content/media validation and later broad completeness checks; installed Safari/manual macOS archive use, OS GUI ZIP/copy and further Windows path variants; live production HTTPS/TLS/CDN compatibility and corporate network requirements; hardware/power/disk-full failures; all historical sandbox versions. Corporate proxies are not implemented. Shared projects and GPT Knowledge remain outside scope.
 
 All executed tests use synthetic data and fake credentials. A passing run proves those scenarios, not remote completeness or a general security guarantee.
 
 The completion display also distinguishes deliberate disabled deletion inference from an actual partial operation. Separate project-resource and GPT failures are injected together with a successful chat and remain errors in the durable report. Both outcomes have behavior checks.
 
-Latest macOS scheduling: the final job can remain queued on the hosted service while Windows has completed. The [preceding core run at 91a859d](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41648579667/job/125960376281) passed all 22 suite files (one Windows-only case skipped), Chromium 145.0.7632.6 archive/UI and WebKit 26.0 archive/UI. The later a40e6cc revision changes one completion-status condition and adds project/GPT/clean-completion assertions; its latest macOS run must still be read as a separate outcome. No failed latest macOS test is being hidden as a pass.
+Historical macOS evidence: the [preceding core run at 91a859d](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41648579667/job/125960376281) passed all 22 suite files (one Windows-only case skipped), Chromium 145.0.7632.6 archive/UI and WebKit 26.0 archive/UI. The later a40e6cc macOS job was cancelled without execution; its initial queued status was only a packaging-time snapshot. The targeted Opus review and implementation agent independently checked this final outcome.

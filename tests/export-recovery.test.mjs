@@ -154,14 +154,14 @@ test("manifest write failure remains partial in the durable report", async () =>
   } finally { f.cleanup(); }
 });
 
-test("a readable-view failure retains newly obtained raw JSON without claiming a completed generation", async () => {
+test("a readable-view failure publishes valid raw JSON and reports the failed view", async () => {
   const f = fixture(); try {
-    f.state.conversations[0].create_time = "invalid-timestamp";
-    const report = await f.run();
-    assert.equal(report.status, "partial"); assert.equal(report.failed, 1);
-    assert.equal(collectLocalConversations(f.root).length, 0);
-    assert.equal(report.retainedUnpublishedRaw.length, 1);
-    const saved = JSON.parse(readFileSync(report.retainedUnpublishedRaw[0]));
+    const report = await f.run({}, { conversationToHtml() { throw new Error("synthetic renderer failure"); } });
+    assert.equal(report.status, "partial"); assert.equal(report.succeeded, 1);
+    assert.ok(report.errors.some(e => e.category === "html"));
+    const records = collectLocalConversations(f.root);
+    assert.equal(records.length, 1);
+    const saved = JSON.parse(readFileSync(records[0].path));
     assert.equal(saved.conversation_id, "sameprefix-one");
     assert.equal(saved.mapping.answer.message.content.parts[0], "Assistant answer");
   } finally { f.cleanup(); }

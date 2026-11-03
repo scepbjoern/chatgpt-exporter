@@ -14,6 +14,7 @@ test("actual process exit between published artifacts is recovered on the next r
       import { runExport } from './lib/export-runner.js';
       const f = fixture();
       f.state.conversations = [conversation('sameprefix-one', 'Q&A Ä # %', 20)];
+      f.state.conversations[0].mapping.answer.message.content.parts[0] = 'Changed answer creates distinct derived artifacts';
       await runExport('FAKE', process.argv[1], 1, false, false, {identity,gpts:false}, ()=>{}, {...f.deps, publicationFault(i){if(i===1) process.exit(73);}});
     `, f.root], { encoding: "utf8" });
     assert.equal(child.status, 73, child.stderr);

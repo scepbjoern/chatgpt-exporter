@@ -1,5 +1,14 @@
 # Changes
 
+## Post-review corrections — 2026-11-03, unreleased
+
+- Address targeted Opus findings N1–N9: deduplicate unchanged publication, remove redundant committed stages after validation, preserve disabled views and referenced media across moves, and refresh navigation after partial exports.
+- Separate header, body-idle and total network deadlines; preserve progressing slow downloads while stopping stalled or overlong responses.
+- Register compact filename keys against full identities with collision extension, cap generated names and reject new live paths over 250 characters; shorten retired-source backup paths while retaining old journal compatibility.
+- Make the verifier consume current operation identity/status and lock state; add crash regressions and a deep-root OS ZIP/Chromium check.
+- Publish canonical raw/media despite renderer errors; tolerate invalid dates, verify targets after retirement, add identity-less alias fallback and bounded transient removal retries.
+- Strengthen legacy HTML marker checks and correct the historical macOS CI record: `a40e6cc` macOS was cancelled with no steps executed. See the [review response](docs/reviews/opus-repair-followup.md) and current [test record](TESTING.md). No release or professional audit is implied.
+
 ## 3.3.1-review.0 — repair candidate, 2026-11-03
 
 Based exactly on `moisescastellano/chatgpt-exporter@78efcdc396816997e843abbab58a966708b79dc9`. This is a review candidate, not a completed external review or a production release.
