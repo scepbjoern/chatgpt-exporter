@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runExport } from "../lib/export-runner.js";
@@ -11,7 +11,7 @@ export function conversation(id = "sameprefix-one", title = "Q&A Ä # %", time =
   } };
 }
 export function fixture() {
-  const root = mkdtempSync(join(tmpdir(), "cge-integration-"));
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "cge-integration-")));
   const state = { conversations: [conversation()], archived: [], projects: [], fileError: null, calls: [], inventoryOverride: null, gpts: [] };
   const deps = {
     resetRateLimiter() {}, setApiWorkspace() {}, getRateLimitState() { return { stopped: false }; },
