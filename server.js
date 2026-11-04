@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { previewExport } from "./lib/export-preview.js";
 /** Local loopback UI. The launch capability is never served in the HTML. */
 import { createServer } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
@@ -53,6 +54,7 @@ function validKey(given, expected) {
 
 /** Dependency injection is used only by synthetic local integration tests. */
 export function createExporterServer(dependencies = {}) {
+  const previewFn = dependencies.previewExport || previewExport;
   const exportFn = dependencies.runExport || runExport;
   const regenerateFn = dependencies.regenerateMarkdown || regenerateMarkdown;
   const projectsFn = dependencies.fetchProjectsInventory || fetchProjectsInventory;
@@ -117,6 +119,12 @@ export function createExporterServer(dependencies = {}) {
       }
       if (req.method !== "POST") return json(res, 404, { error: "Not found" });
       const body = await readJson(req);
+      if (url.pathname === "/cancel-job") {
+        const job = jobs.get(body.exportId);
+        if (!job || job.done) return json(res, 404, { error: "No running job" });
+        job.controller.abort(new Error("Stopped by user. Existing files are preserved."));
+        return json(res, 200, { ok: true });
+      }
       if (busy) return json(res, 409, { error: "Another export or local operation is running" });
       if (url.pathname === "/create-dir") {
         if (typeof body.path !== "string" || !body.path.trim()) return json(res, 400, { error: "No folder path provided" });
@@ -135,16 +143,24 @@ export function createExporterServer(dependencies = {}) {
         } finally { busy = false; try { resetRateLimiter(); } finally { setApiWorkspace(null); } }
         return json(res, 200, { projects: projects.map(p => ({ id: p.gizmoId, name: p.name })) });
       }
-      if (url.pathname !== "/start-export" && url.pathname !== "/regenerate-markdown") return json(res, 404, { error: "Not found" });
-      const isExport = url.pathname === "/start-export";
+      if (!["/start-export", "/preview-export", "/regenerate-markdown"].includes(url.pathname)) return json(res, 404, { error: "Not found" });
+      const isPreview = url.pathname === "/preview-export";
+      const isExport = url.pathname === "/start-export" || isPreview;
       if (isExport && (typeof body.token !== "string" || !body.token)) return json(res, 400, { error: "No token provided" });
       const options = body.exportOptions || {};
       if (isExport && (!options.identity || typeof options.identity.userId !== "string" || !options.identity.userId.trim() || typeof options.identity.workspaceId !== "string" || !options.identity.workspaceId.trim())) {
         return json(res, 400, { error: "Session user ID and explicit workspace ID are required" });
       }
+      if (isExport) {
+        if (!/^[A-Za-z0-9_-]{1,200}$/.test(options.identity.userId) || !/^[A-Za-z0-9_-]{1,200}$/.test(options.identity.workspaceId)) return json(res, 400, { error: "Invalid user/workspace ID" });
+        if ([options.conversations, options.projects, options.gpts].every(value => value === false)) return json(res, 400, { error: "Select at least one export category" });
+        for (const name of ["dateFrom", "dateTo"]) if (options[name] && (!/^\d{4}-\d{2}-\d{2}$/.test(options[name]) || !Number.isFinite(Date.parse(options[name])) || new Date(options[name]).toISOString().slice(0, 10) !== options[name])) return json(res, 400, { error: "Invalid date range" });
+        if (options.dateFrom && options.dateTo && options.dateFrom > options.dateTo) return json(res, 400, { error: "Start date is after end date" });
+        if (options.selectedProjectIds != null && (!Array.isArray(options.selectedProjectIds) || options.selectedProjectIds.some(id => typeof id !== "string" || !/^[A-Za-z0-9_-]{1,200}$/.test(id)))) return json(res, 400, { error: "Invalid project selection" });
+      }
       const outputDir = resolve(body.outputDir || join(homedir(), "Desktop", "chatgpt-export"));
       const exportId = randomUUID();
-      const job = { events: [], done: false, connected: false, response: null, terminalEmitted: false, error: null };
+      const job = { controller: new AbortController(), events: [], done: false, connected: false, response: null, terminalEmitted: false, error: null };
       // Retain only a bounded number of completed job summaries in memory.
       for (const [id, old] of jobs) if (old.done && jobs.size >= 8) jobs.delete(id);
       jobs.set(exportId, job);
@@ -170,8 +186,8 @@ export function createExporterServer(dependencies = {}) {
           job.events.push(event);
         }
       };
-      const invoke = () => isExport
-        ? exportFn(body.token, outputDir, 1, false, body.keepAwake ?? false, options, sendEvent)
+      const invoke = () => isPreview ? previewFn(body.token, options, sendEvent, { signal: job.controller.signal }) : isExport
+        ? exportFn(body.token, outputDir, 1, false, body.keepAwake ?? false, options, sendEvent, { signal: job.controller.signal })
         : regenerateFn(outputDir, body.markdownOptions || {}, sendEvent);
       Promise.resolve().then(invoke).catch(error => sendEvent("error_msg", redactSecrets(error.message))).finally(() => {
         if (!job.terminalEmitted) sendEvent("done", JSON.stringify({ total: 0, succeeded: 0, failed: 1, status: "partial", errors: [{ message: job.error || "Operation ended without a completion report" }], output: outputDir }));

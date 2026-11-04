@@ -1,5 +1,15 @@
 # Test record
 
+## 3.4.0-review.0 — 2026-11-04
+
+The implementing agent ran all **26 core test files** successfully on Windows / Node.js 24.11.0. Eight new focused cases cover dated 32-character Unicode names, organized export/resume/regeneration and manifest integrity, legacy filename migration without re-downloading chats, preview with no archive writes, project PDF extensions and missing-file context, long HTTP-date Retry-After, bounded 5xx/429 handling, and cancellation during a wait. Existing inventory validation tests still pass after sharing enumeration with preview.
+
+Chromium 145.0.7632.6 passed offline archive navigation and the local UI, including disabled-start reasons, all Markdown defaults, preview/session reuse, invalid dates and stale-preview indication. The native Windows ZIP round trip with organized folders passed: source root 63 characters, restored root 73, longest paths 240/250, matching manifests and an actually opened local attachment. A synthetic UI screenshot was visually inspected; no private archive or real token was used for these checks.
+
+Current macOS CI is pending until this code is pushed and its job finishes; earlier CI results do not validate this version. No unattended real-account overnight run or renewed Opus review is claimed.
+
+The sections below are historical records for earlier commits.
+
 ## Inventory pagination repair, 2026-11-03
 
 The current working tree adds advisory-total pagination: enumerate until an explicit

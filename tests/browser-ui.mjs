@@ -4,8 +4,12 @@ import { chromium, firefox, webkit } from "playwright";
 import { createExporterServer } from "../server.js";
 
 const marker = '<img src="https://example.invalid/automatic" onerror="window.ATTACK=true">';
-let receivedToken = null;
+let receivedToken = null, previewToken = null;
 const { server, key } = createExporterServer({
+  previewExport: async (token, options, send) => {
+    previewToken = token;
+    send("done", JSON.stringify({ operation: "preview", conversations: 7, projects: 2, gpts: 3, status: "complete-within-requested-scope" }));
+  },
   runExport: async (token, output, concurrency, zip, keepAwake, options, send) => {
     receivedToken = token;
     send("done", JSON.stringify({ total: 1, processed: 1, succeeded: 0, updated: 0, skipped: 0, failed: 1, failedTitles: [marker], status: "partial", output }));
@@ -31,7 +35,7 @@ try {
     await page.waitForFunction(() => document.getElementById("output-dir").value.length > 0, null, { timeout: 5000 });
   } catch (error) { throw new Error(`UI did not initialize: ${JSON.stringify({ errors, requests })}`, { cause: error }); }
   assert.equal(new URL(page.url()).hash, "");
-  await page.locator("[data-handler-15]").click();
+  assert.equal(await page.locator("#export-btn").isDisabled(), true);
   assert.equal(await page.locator("#opt-conversations").isVisible(), true);
   await page.locator("[data-handler-14]").click();
   await page.locator("#fp-list").getByText(marker, { exact: false }).waitFor();
@@ -39,6 +43,24 @@ try {
   await page.locator("[data-handler-6]").click();
   await page.locator("#token-input").fill(JSON.stringify({ accessToken: "SYNTHETIC_TOKEN_ONLY", user: { id: "synthetic-user" } }));
   await page.locator("#workspace-id").fill("synthetic-workspace");
+  assert.equal(await page.locator("#md-conversation-metadata").isChecked(), true);
+  assert.equal(await page.locator("#md-timestamps").isChecked(), true);
+  assert.equal(await page.locator("#md-model-name").isChecked(), true);
+  assert.equal(await page.locator("#md-thought-process").isChecked(), true);
+  assert.equal(await page.locator("#md-branch-mode").inputValue(), "all");
+  await page.locator("#preview-btn").click();
+  await page.locator("#preview-result").filter({ hasText: "7 conversations" }).waitFor();
+  assert.equal(previewToken, "SYNTHETIC_TOKEN_ONLY");
+  assert.notEqual(await page.locator("#token-input").inputValue(), "");
+  await page.locator("#opt-date-from").fill("2026-02-01");
+  await page.locator("#opt-date-to").fill("2026-01-01");
+  assert.equal(await page.locator("#export-btn").isDisabled(), true);
+  assert.match(await page.locator("#preview-result").textContent(), /out of date/);
+  await page.locator("#start-wrapper").hover();
+  assert.match(await page.locator("#start-reasons").textContent(), /start date/);
+  await page.locator("#opt-date-from").fill("");
+  await page.locator("#opt-date-to").fill("");
+  assert.equal(await page.locator("#export-btn").isEnabled(), true);
   await page.locator("#export-btn").click();
   await page.locator("#result").filter({ hasText: marker }).waitFor();
   assert.equal(receivedToken, "SYNTHETIC_TOKEN_ONLY");
@@ -48,7 +70,7 @@ try {
   assert.equal(await page.evaluate(() => window.ATTACK), undefined);
   assert.deepEqual(requests.filter(url => !url.startsWith(origin + "/")), []);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ result: "passed", engine, channel: channel || "bundled", browser: await browser.version(), platform: process.platform, checks: ["launch capability removed from URL", "authenticated config/progress", "CSP permits intended controls", "folder XSS marker inert", "completion XSS marker inert", "token field cleared", "partial result warning", "no external requests"] }, null, 2));
+  console.log(JSON.stringify({ result: "passed", engine, channel: channel || "bundled", browser: await browser.version(), platform: process.platform, checks: ["launch capability removed from URL", "authenticated config/progress", "CSP permits intended controls", "folder XSS marker inert", "completion XSS marker inert", "token field cleared", "partial result warning", "no external requests", "disabled start and reasons", "default Markdown options and branches", "preview retains session", "preview invalidates on selection change", "export after preview without repasting"] }, null, 2));
   await context.close();
 } finally {
   await browser.close();

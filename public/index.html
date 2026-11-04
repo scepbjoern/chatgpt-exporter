@@ -200,6 +200,7 @@
   }
   .fp-new-row input:focus { border-color: #3b82f6; }
   .fp-new-row button { width: auto; padding: 7px 14px; font-size: 13px; border-radius: 6px; }
+.options-hint,.action-hint{color:#a8b6ca;font-size:12px;line-height:1.5}h2{font-size:18px;margin:26px 0 14px;color:#dce6f5}.tooltip-wrap{position:relative}.tooltip-wrap [role=tooltip]{display:none;position:absolute;z-index:10;left:0;right:0;bottom:100%;background:#0f172a;color:#e2e8f0;border:1px solid #64748b;border-radius:6px;padding:12px;font-size:13px}.tooltip-wrap:hover [role=tooltip],.tooltip-wrap:focus-within [role=tooltip]{display:block}.tooltip-wrap button{width:100%}button:disabled{opacity:.45;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -252,6 +253,7 @@
   <h1>ChatGPT Exporter</h1>
   <p class="subtitle">Save conversations as JSON, Markdown &amp; offline HTML</p>
 
+  <h2>1. Connect to ChatGPT</h2>
   <div id="steps">
     <div class="step">
       <div class="step-num" id="step1-num">1</div>
@@ -274,31 +276,9 @@
   <div class="field">
     <label for="workspace-id">ChatGPT workspace/account ID</label>
     <input type="text" id="workspace-id" autocomplete="off" placeholder="Explicit workspace ID">
-    <div class="options-hint">Use the ID for the selected ChatGPT workspace. The export folder is bound to this ID and the session user. Verify the returned inventory before using real archives; routing has not been validated against a real Business account.</div>
+    <div class="options-hint">Use the ID for the intended workspace. Check that the preview shows the expected selection. Resume this folder with the same user and workspace.</div>
   </div>
-  <div class="field">
-    <label for="output-dir">Output folder</label>
-    <div class="field-row">
-      <input type="text" id="output-dir" placeholder="Loading...">
-      <button class="btn-browse" data-handler-14="">📁 Browse</button>
-    </div>
-  </div>
-
-  <div class="field" style="margin-bottom:16px">
-    <label for="concurrency">Download pace</label>
-    <select id="concurrency" disabled style="width:100%;background:#0f172a;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;margin-top:0">
-      <option value="1" selected>One file at a time</option>
-    </select>
-    <div class="options-hint">Files download one at a time to limit memory use.</div>
-  </div>
-
-  <div class="options-section">
-    <div class="options-header" data-handler-15="">
-      <span class="options-arrow">▸</span>
-      <span>Export options</span>
-    </div>
-    <div class="options-body hidden">
-      <div class="options-group">
+  <h2>2. Choose what to export</h2><div id="scope-options">      <div class="options-group">
         <div class="options-group-label">What to export</div>
         <div class="opt-checks">
           <label class="opt-check"><input type="checkbox" id="opt-conversations" checked> Conversations</label>
@@ -308,49 +288,6 @@
             <button type="button" id="project-choose-btn" class="project-choose-btn" data-handler-17="">Choose...</button>
           </div>
           <label class="opt-check"><input type="checkbox" id="opt-gpts" checked> GPTs</label>
-        </div>
-      </div>
-      <div class="options-group">
-        <div class="options-group-label">File formats</div>
-        <div class="opt-checks">
-          <label class="opt-check"><input type="checkbox" id="opt-json" checked disabled> JSON</label>
-          <label class="opt-check"><input type="checkbox" id="opt-markdown" checked> Markdown</label>
-          <label class="opt-check"><input type="checkbox" id="opt-html" checked> HTML</label>
-        </div>
-      </div>
-      <div class="options-group">
-        <div class="options-group-label">Markdown options</div>
-        <div class="opt-checks">
-          <label class="opt-check"><input type="checkbox" id="md-conversation-metadata"> Conversation metadata</label>
-          <label class="opt-check"><input type="checkbox" id="md-timestamps"> Message timestamps</label>
-          <label class="opt-check"><input type="checkbox" id="md-model-name"> Model name</label>
-          <label class="opt-check" title="Show visible activity summaries in a quoted Worked block"><input type="checkbox" id="md-thought-process"> Activity summaries (Worked)</label>
-        </div>
-        <div class="date-row" style="margin-top:10px">
-          <div class="date-field">
-            <label for="md-date-format">Date format</label>
-            <select id="md-date-format" style="background:#1e293b;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none;width:100%">
-              <option value="iso" selected>ISO — YYYY-MM-DD</option>
-              <option value="european">European — DD/MM/YYYY</option>
-            </select>
-          </div>
-          <div class="date-field">
-            <label for="md-branch-mode">Conversation branch</label>
-            <select id="md-branch-mode" style="background:#1e293b;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none;width:100%">
-              <option value="current" selected>Current branch</option>
-              <option value="all">All branches</option>
-            </select>
-          </div>
-        </div>
-        <div class="date-row" style="margin-top:10px">
-          <div class="date-field">
-            <label for="md-user-label">User label</label>
-            <input type="text" id="md-user-label" value="User">
-          </div>
-          <div class="date-field">
-            <label for="md-assistant-label">Assistant label</label>
-            <input type="text" id="md-assistant-label" value="Assistant">
-          </div>
         </div>
       </div>
       <div class="options-group">
@@ -366,8 +303,74 @@
             <input type="date" id="opt-date-to">
           </div>
         </div>
-        <div class="options-hint">Leave empty to export all</div>
+        <div class="options-hint">Leave empty for all conversation creation dates (UTC). This filter does not limit project or GPT definitions.</div>
       </div>
+          <div class="date-field">
+            <label for="md-branch-mode">Conversation branch</label>
+            <select id="md-branch-mode" style="background:#1e293b;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none;width:100%">
+              <option value="current">Current branch</option>
+              <option value="all" selected>All branches</option>
+            </select>
+          </div>
+<p class="options-hint">Branches are alternative replies or edited messages. This choice affects Markdown; raw JSON and HTML retain all stored branches.</p>
+</div>
+  <h2>3. Choose the formats</h2>      <div class="options-group">
+        <div class="options-group-label">File formats</div>
+        <div class="opt-checks">
+          <label class="opt-check"><input type="checkbox" id="opt-json" checked disabled> JSON</label>
+          <label class="opt-check"><input type="checkbox" id="opt-markdown" checked> Markdown</label>
+          <label class="opt-check"><input type="checkbox" id="opt-html" checked> Chat HTML pages</label>
+          <label class="opt-check"><input type="checkbox" id="opt-index-html" checked> Searchable HTML index (also works without chat HTML)</label>
+          <div class="options-hint">A Markdown index is always included. Dates in filenames and indexes use UTC.</div>
+        </div>
+      </div>
+      <div class="options-group">
+        <div class="options-group-label">Markdown options</div>
+        <div class="opt-checks">
+          <label class="opt-check"><input type="checkbox" id="md-conversation-metadata" checked> Conversation metadata</label>
+          <label class="opt-check"><input type="checkbox" id="md-timestamps" checked> Message timestamps</label>
+          <label class="opt-check"><input type="checkbox" id="md-model-name" checked> Model name</label>
+          <label class="opt-check" title="Show visible activity summaries in a quoted Worked block"><input type="checkbox" id="md-thought-process" checked> Activity summaries (Worked)</label>
+        </div>
+        <div class="date-row" style="margin-top:10px">
+          <div class="date-field">
+            <label for="md-date-format">Date format</label>
+            <select id="md-date-format" style="background:#1e293b;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none;width:100%">
+              <option value="iso" selected>ISO — YYYY-MM-DD</option>
+              <option value="european">European — DD/MM/YYYY</option>
+            </select>
+          </div>
+
+        </div>
+        <div class="date-row" style="margin-top:10px">
+          <div class="date-field">
+            <label for="md-user-label">User label</label>
+            <input type="text" id="md-user-label" value="User">
+          </div>
+          <div class="date-field">
+            <label for="md-assistant-label">Assistant label</label>
+            <input type="text" id="md-assistant-label" value="Assistant">
+          </div>
+        </div>
+      </div>
+
+  <h2>4. Choose where to save</h2>  <div class="field">
+    <label for="output-dir">Output folder</label>
+    <div class="field-row">
+      <input type="text" id="output-dir" placeholder="Loading...">
+      <button class="btn-browse" data-handler-14="">📁 Browse</button>
+    </div>
+  </div>
+
+<p class="options-hint">Use a short local path. Paste a folder path from Explorer or Finder; the final folder is created if it does not exist. Files are saved unencrypted. New exports use archive/ for readable files and _work/ for resume and recovery. Keep both while exporting.</p>
+  <h2>5. Choose how to run</h2>  <div class="field" style="margin-bottom:16px">
+    <label for="concurrency">Download pace</label>
+    <select id="concurrency" style="width:100%;background:#0f172a;border:2px solid #334155;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;margin-top:0">
+      <option value="1" selected>Standard — at least 1 second between requests</option><option value="2">Gentle — at least 2 seconds</option><option value="5">Slow — at least 5 seconds</option>
+    </select>
+    <div class="options-hint">Files download sequentially. Temporary rate limits trigger automatic waits and retries; repeated limits slow the pace. Keep this computer running and connected.</div>
+  </div>
+
       <div class="options-group">
         <div class="toggle-row" style="margin:0">
           <label class="toggle">
@@ -376,14 +379,16 @@
           </label>
           <span class="toggle-label">Keep computer awake during export</span>
         </div>
-        <div class="options-hint">After completion, use Finder or Explorer to ZIP the finished folder.</div>
+        <div class="options-hint">Keep-awake helps prevent sleep while this app runs; it cannot restore an expired ChatGPT session.</div>
       </div>
-    </div>
-  </div>
-
-  <button id="export-btn" data-handler-18="">Export conversations</button>
-  <button id="regenerate-md-btn" class="secondary-action" data-handler-19="">Regenerate local views</button>
-  <div class="action-hint">Rebuilds Markdown, HTML and the index from existing local JSON. No ChatGPT requests are made.</div>
+  <h2>6. Preview or start</h2>
+  <p id="session-status" class="options-hint" aria-live="polite"></p>
+  <div id="start-wrapper" class="tooltip-wrap" tabindex="0" aria-describedby="start-reasons"><button id="export-btn" data-handler-18="" disabled>Start Export</button><span id="start-reasons" role="tooltip"></span></div>
+  <div class="action-hint">After completion and checking the report, use Finder or Explorer to ZIP the readable archive folder. Keep the working folder for resuming or recovery.</div>
+  <button id="preview-btn" class="secondary-action" disabled>Preview selection</button>
+  <p id="preview-result" class="options-hint" aria-live="polite"></p>
+  <button id="cancel-btn" class="secondary-action hidden">Stop safely</button>
+  <div class="tooltip-wrap"><button id="regenerate-md-btn" class="secondary-action" data-handler-19="" aria-describedby="regenerate-help">Regenerate local views</button><span id="regenerate-help" role="tooltip">Use after a display fix or to change Markdown options. Rebuilds Markdown, HTML and indexes from saved local JSON and attachments. No ChatGPT requests or new downloads. Existing views are replaced.</span></div>
 
   <div id="progress-section" class="progress-section hidden">
     <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
@@ -402,6 +407,7 @@
   let cachedSession = null;
   let credentialExpiry = null;
   let busy = false;
+  let activeJob = null, retryTimer = null, previewValid = false;
   const nativeFetch = window.fetch.bind(window);
   const apiFetch = (url, options = {}) => nativeFetch(url, {
     ...options,
@@ -596,7 +602,7 @@
     const dirField = document.getElementById('output-dir');
     dirField.value       = saved.outputDir || cfg.defaultDir;
     dirField.placeholder = cfg.defaultDir;
-    document.getElementById('concurrency').value = '1';
+    document.getElementById('concurrency').value = ['1','2','5'].includes(String(saved.concurrency)) ? String(saved.concurrency) : '1';
     if (saved.keepAwake !== undefined) document.getElementById('keep-awake').checked = saved.keepAwake;
 
     const markdown = saved.markdown || {};
@@ -624,6 +630,7 @@
     if (markdown.assistantLabel) {
       document.getElementById('md-assistant-label').value = markdown.assistantLabel;
     }
+    validateStart();
   }).catch(error => showResult('error', error.message));
 
   // ── Optional Project selection ────────────────────────────────────
@@ -637,7 +644,6 @@
   function readSession() {
     const field = document.getElementById('token-input');
     const raw = field.value.trim();
-    field.value = '';
     if (raw) {
       cachedSession = null;
       let parsed;
@@ -647,14 +653,14 @@
       if (typeof parsed.user?.id !== 'string' || !parsed.user.id) throw new Error('Session user ID is required.');
       cachedSession = { token: parsed.accessToken, userId: parsed.user.id };
       clearTimeout(credentialExpiry);
-      credentialExpiry = setTimeout(() => { cachedSession = null; }, 5 * 60 * 1000);
+      credentialExpiry = setTimeout(() => { cachedSession = null; field.value = ''; validateStart(); }, 5 * 60 * 1000);
     }
     if (!cachedSession) throw new Error('Paste the session JSON first.');
     return cachedSession;
   }
   function workspaceId() {
     const id = document.getElementById('workspace-id').value.trim();
-    if (!id) throw new Error('Enter the selected ChatGPT workspace/account ID.');
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(id)) throw new Error('Enter the selected ChatGPT workspace/account ID.');
     return id;
   }
 
@@ -789,6 +795,7 @@
     const allSelected = _projectDraftIds.size === _availableProjects.length;
     _selectedProjectIds = allSelected ? null : [..._projectDraftIds];
     updateProjectSummary();
+    if (previewValid) { previewValid = false; document.getElementById('preview-result').textContent = 'Project selection changed: preview is out of date.'; }
     projectClose();
   }
 
@@ -810,17 +817,23 @@
 
   function setBusy(value) {
     busy = value;
-    document.getElementById('export-btn').disabled = value;
+    document.querySelectorAll('.card input, .card textarea, .card select').forEach(el => { el.disabled = value || el.id === 'opt-json'; });
+    validateStart();
     document.getElementById('regenerate-md-btn').disabled = value;
     document.getElementById('token-input').disabled = value;
     document.getElementById('workspace-id').disabled = value;
     syncProjectChooserState();
   }
 
-  function resetUI() {
+  function resetUI(preserveSession = false) {
+    clearInterval(retryTimer); retryTimer = null;
+    activeJob = null;
+    document.getElementById('cancel-btn').classList.add('hidden');
+    if (!preserveSession) {
     clearTimeout(credentialExpiry);
     cachedSession = null;
     document.getElementById('token-input').value = '';
+    }
     setBusy(false);
   }
 
@@ -839,19 +852,24 @@
     let message = regeneration
       ? `${d.succeeded || 0} of ${d.total || 0} local conversation views regenerated (Markdown and HTML).`
       : `${d.succeeded || 0} new · ${d.updated || 0} updated · ${d.skipped || 0} resumed · ${d.failed || 0} failed.`;
-    if (d.rateLimited) message = 'Export paused by ChatGPT rate limit.\n' + message + `\n${remaining} conversation(s) remain. Run again later in the same folder and review the saved report.`;
-    if (d.rateLimitRetryAfter || d.retryAfter) message += '\nRetry-After: ' + (d.rateLimitRetryAfter || d.retryAfter);
-    if (d.deletionReconciliationComplete === false && !regeneration) message += '\nAutomatic deletion classification was disabled; absence from the inventory is not proof of deletion.';
-    if (d.totalFiles) message += `\n${d.totalFiles - (d.failedFiles || 0)} of ${d.totalFiles} requested files available.`;
+    if (!regeneration) message += `\nProjects: ${d.projects || 0} saved · GPT metadata: ${d.gpts || 0} saved.`;
+    if (d.cancelled) message = 'Stopped safely. Existing files are preserved.\n' + message;
+    if (d.rateLimited) message = 'Automatic retries exhausted; this run has stopped.\n' + message + `\n${remaining} unprocessed conversation(s) remain, plus ${d.failed || 0} failed. Start again later in the same folder.`;
+    if (d.rateLimitRetryAfter || d.retryAfter) message += '\nServer Retry-After (seconds or date): ' + (d.rateLimitRetryAfter || d.retryAfter);
+    if (d.totalFiles) message += `\nFiles: ${d.totalFiles - (d.failedFiles || 0)} of ${d.totalFiles} references available; ${d.failedFiles || 0} could not be downloaded.`;
+    if (d.missingFiles?.length) message += '\nUnavailable files may no longer exist or be accessible on ChatGPT. See missing-files.md in the readable archive.\n' + d.missingFiles.map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''}`).join('\n');
     if (d.failedTitles?.length) message += '\nFailed conversations: ' + d.failedTitles.join(', ');
-    if (issues.length) message += '\nOpen issues: ' + issues.map(e => typeof e === 'string' ? e : e.message || JSON.stringify(e)).join('\n');
-    if (d.output) message += '\nSaved to: ' + d.output;
-    if (!regeneration) message += '\nCheck the saved report and manifest before archiving this folder with Finder or Explorer.';
+    const otherIssues = issues.filter(e => !['media','project-resource'].includes(e.category));
+    if (otherIssues.length) message += '\nOpen issues: ' + otherIssues.map(e => typeof e === 'string' ? e : e.message || JSON.stringify(e)).join('\n');
+    if (d.output) message += '\nSaved to: ' + (d.archive || d.output);
+    if (!regeneration) message += '\nReview the report before archiving. Keep the complete output folder for resuming; absence from the inventory is not proof of deletion.';
     showResult(incomplete ? 'warning' : 'success', message);
     document.getElementById('progress-bar').style.background = incomplete ? '#f59e0b' : '#22c55e';
   }
 
   async function launchJob(endpoint, payload, regeneration = false) {
+    const preview = endpoint === '/preview-export';
+    if (!preview) document.getElementById('token-input').value = '';
     setBusy(true);
     document.getElementById('progress-section').classList.remove('hidden');
     document.getElementById('result').classList.add('hidden');
@@ -863,24 +881,42 @@
     try {
       const response = await apiFetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       payload.token = null;
-      cachedSession = null;
+      if (!preview) { cachedSession = null; document.getElementById('token-input').value = ''; }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      activeJob = data.exportId;
+      document.getElementById('cancel-btn').classList.toggle('hidden', regeneration);
       const progress = openProgress(data.exportId);
+      progress.addEventListener('current', e => { const d = JSON.parse(e.data); document.getElementById('current-title').textContent = d.title; document.getElementById('stats-row').textContent = d.phase; });
+      progress.addEventListener('resume_summary', e => { const d = JSON.parse(e.data); document.getElementById('progress-text').textContent = `${d.alreadyPresent} of ${d.total} conversations already saved; checking existing files. ${d.newItems} not yet saved.`; document.getElementById('progress-bar').style.width = (d.total ? Math.round(d.alreadyPresent / d.total * 100) : 0) + '%'; });
+      progress.addEventListener('retry_wait', e => {
+        const d = JSON.parse(e.data); clearInterval(retryTimer);
+        if (d.resumed) { document.getElementById('progress-text').textContent = 'Continuing automatically…'; return; }
+        const tick = () => { document.getElementById('progress-text').textContent = `Waiting (${d.reason}). Continuing automatically in ${Math.max(0, Math.ceil((d.retryAt - Date.now()) / 1000))} seconds; attempt ${d.attempt}.`; };
+        tick(); retryTimer = setInterval(tick, 1000);
+      });
       let done = false;
       progress.addEventListener('status', e => { document.getElementById('progress-text').textContent = e.data; });
       progress.addEventListener('progress', e => {
         const d = JSON.parse(e.data);
-        const pct = d.total > 0 ? Math.round(d.current / d.total * 100) : 0;
+        const pct = d.total > 0 ? Math.round((d.saved ?? d.current) / d.total * 100) : 0;
         document.getElementById('progress-bar').style.width = pct + '%';
-        document.getElementById('progress-text').textContent = `${d.current} of ${d.total} (${pct}%)`;
-        document.getElementById('current-title').textContent = d.title || '';
-        document.getElementById('stats-row').textContent = d.stats || '';
+        document.getElementById('progress-text').textContent = d.saved === undefined ? `${d.current} of ${d.total} (${pct}%)` : `${d.saved} of ${d.total} chats saved locally (${pct}%) · ${d.current} checked this run`;
+        if (regeneration) document.getElementById('current-title').textContent = d.title || '';
+        if (d.stats) document.getElementById('stats-row').textContent = d.stats;
       });
-      const finish = () => { done = true; progress.close(); resetUI(); };
+      const finish = () => { done = true; progress.close(); resetUI(preview); };
       progress.addEventListener('error_msg', e => { showResult('error', e.data + '\nWaiting for the saved completion report...'); });
       progress.addEventListener('rate_limited', e => { const d = JSON.parse(e.data); showResult('warning', (d.message || 'Export paused by ChatGPT rate limit.') + '\nWaiting for the saved completion report...'); });
-      progress.addEventListener('done', e => { completionResult(JSON.parse(e.data), regeneration); finish(); });
+      progress.addEventListener('done', e => {
+        const d = JSON.parse(e.data);
+        if (preview) {
+          previewValid = true;
+          document.getElementById('preview-result').textContent = `Preview: ${d.conversations || 0} conversations · ${d.projects || 0} projects · ${d.gpts || 0} GPT metadata records. Counts are a snapshot; export checks again.`;
+          showResult(d.status === 'partial' ? 'warning' : 'success', d.status === 'partial' ? 'Preview coverage is incomplete: ' + (d.errors || []).map(e => e.message).join('\n') : 'Preview ready. Start Export uses the same session while it remains valid.');
+        } else completionResult(d, regeneration);
+        finish();
+      });
       progress.onerror = () => {
         if (done) return;
         showResult('warning', 'Progress connection closed before completion. The job may still be running. Review the saved report; another job is blocked until it finishes.');
@@ -893,8 +929,8 @@
     }
   }
 
-  function startExport() {
-    if (busy) return;
+  function startExport(preview = false) {
+    if (busy || !validateStart()) return;
     let session, workspace;
     try { session = readSession(); workspace = workspaceId(); }
     catch (error) { showResult('error', error.message); return; }
@@ -907,13 +943,14 @@
       projects: document.getElementById('opt-projects').checked,
       selectedProjectIds: _selectedProjectIds,
       gpts: document.getElementById('opt-gpts').checked,
-      formats: { json: true, markdown: document.getElementById('opt-markdown').checked, html: document.getElementById('opt-html').checked },
+      formats: { json: true, markdown: document.getElementById('opt-markdown').checked, html: document.getElementById('opt-html').checked, indexHtml: document.getElementById('opt-index-html').checked },
+      organizeFolders: true, paceMs: concurrency * 1000,
       markdown: getMarkdownOptions(),
       dateFrom: document.getElementById('opt-date-from').value,
       dateTo: document.getElementById('opt-date-to').value,
     };
     savePrefs({ outputDir, concurrency, keepAwake, markdown: exportOptions.markdown });
-    launchJob('/start-export', { token: session.token, outputDir, concurrency, keepAwake, exportOptions });
+    launchJob(preview ? '/preview-export' : '/start-export', { token: session.token, outputDir, concurrency, keepAwake, exportOptions });
   }
 
   function regenerateMarkdown() {
@@ -922,6 +959,37 @@
     launchJob('/regenerate-markdown', { outputDir, markdownOptions: getMarkdownOptions() }, true);
   }
 
+  function validateStart() {
+    const reasons = [];
+    if (busy) reasons.push('An operation is running.');
+    const raw = document.getElementById('token-input').value.trim();
+    let session = cachedSession;
+    if (raw) {
+      try { const p = JSON.parse(raw); session = typeof p.accessToken === 'string' && p.accessToken.trim() && typeof p.user?.id === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(p.user.id) ? { token: p.accessToken, userId: p.user.id } : null; } catch { session = null; }
+    }
+    if (!session) reasons.push('Paste valid session JSON including accessToken and user.id.');
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(document.getElementById('workspace-id').value.trim())) reasons.push('Enter the workspace/account ID.');
+    if (!document.getElementById('output-dir').value.trim()) reasons.push('Enter an output folder.');
+    if (!['opt-conversations','opt-projects','opt-gpts'].some(id => document.getElementById(id).checked)) reasons.push('Select at least one export category.');
+    const from = document.getElementById('opt-date-from').value, to = document.getElementById('opt-date-to').value;
+    if (from && to && from > to) reasons.push('The start date must be before the end date.');
+    document.getElementById('export-btn').disabled = reasons.length > 0;
+    document.getElementById('preview-btn').disabled = reasons.length > 0;
+    document.getElementById('start-reasons').textContent = reasons.join(' ') || 'Ready to start. Server authentication is checked when connecting.';
+    document.getElementById('session-status').textContent = busy ? 'Session is being used by this operation.' : session ? 'Session available for preview/export; server validity is checked on connection.' : 'For another online export, paste the session JSON again. No server restart is needed.';
+    return reasons.length === 0;
+  }
+  document.querySelectorAll('.card input, .card textarea, .card select').forEach(el => el.addEventListener('input', () => {
+    validateStart();
+    if (previewValid) { document.getElementById('preview-result').textContent = 'Selection changed: the previous preview is out of date.'; previewValid = false; }
+  }));
+  document.getElementById('preview-btn').addEventListener('click', () => startExport(true));
+  document.getElementById('cancel-btn').addEventListener('click', async () => {
+    if (!activeJob) return;
+    const response = await apiFetch('/cancel-job', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ exportId: activeJob }) });
+    if (response.ok) document.getElementById('progress-text').textContent = 'Stopping safely; saving the completion report…';
+  });
+  validateStart();
   document.querySelector('[data-handler-0]').addEventListener('click', function(event) { if(event.target===this)fpClose() });
   document.querySelector('[data-handler-1]').addEventListener('click', function(event) { fpClose() });
   document.querySelector('[data-handler-2]').addEventListener('keydown', function(event) { if(event.key==='Enter')fpCreateFolder();if(event.key==='Escape')fpToggleNew(false) });
@@ -937,7 +1005,7 @@
   document.querySelector('[data-handler-12]').addEventListener('click', function(event) { projectClose() });
   document.querySelector('[data-handler-13]').addEventListener('click', function(event) { projectApplySelection() });
   document.querySelector('[data-handler-14]').addEventListener('click', function(event) { pickFolder() });
-  document.querySelector('[data-handler-15]').addEventListener('click', function(event) { toggleOptions(this) });
+
   document.querySelector('[data-handler-16]').addEventListener('change', function(event) { syncProjectChooserState() });
   document.querySelector('[data-handler-17]').addEventListener('click', function(event) { openProjectPicker(event) });
   document.querySelector('[data-handler-18]').addEventListener('click', function(event) { startExport() });

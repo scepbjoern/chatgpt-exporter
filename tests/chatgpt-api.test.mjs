@@ -37,7 +37,7 @@ test("synthetic local API routes workspace and validates schema without exposing
     assert.equal(requests[0].headers.authorization, "Bearer FAKE_TOKEN");
     assert.equal(requests[0].headers["chatgpt-account-id"], "workspace-synthetic");
     await assert.rejects(client.apiGet("conversations?broken", "FAKE_TOKEN"), /missing items/);
-    await assert.rejects(client.apiGet("error", "FAKE_TOKEN"), (error) => error.message === "HTTP 403");
+    await assert.rejects(client.apiGet("error", "FAKE_TOKEN"), (error) => error.message.startsWith("HTTP 403") && !error.message.includes("FAKE_SECRET_RESPONSE") && !error.message.includes("FAKE_TOKEN"));
     await assert.rejects(client.apiGet("../escape", "FAKE_TOKEN"), /Invalid API path/);
     assert.throws(() => client.setApiWorkspace("bad\r\nheader"), /Invalid workspace/);
   } finally { await server.close(); }

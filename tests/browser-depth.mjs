@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
+import { contentRoot, workPath } from "../lib/archive-layout.js";
 import { runExport } from "../lib/export-runner.js";
 import { collectLocalConversations } from "../lib/conversation-storage.js";
 import { conversation, fixture, identity } from "./export-fixtures.mjs";
@@ -14,8 +15,8 @@ const f = fixture();
 // /tmp avoids the unusually deep macOS per-user temporary directory. The
 // canonical path is still measured (macOS resolves it to /private/tmp).
 const parent = realpathSync.native(mkdtempSync(join(process.platform === "darwin" ? "/tmp" : tmpdir(), "cge-depth-")));
-const padding = 95 - parent.length - 1;
-assert.ok(padding >= 1, "Temporary directory is too deep for the 95-character fixture; use a shorter TEMP path");
+const padding = 63 - parent.length - 1;
+assert.ok(padding >= 1, "Temporary directory is too deep for the 63-character fixture; use a shorter TEMP path");
 const archive = join(parent, "d".repeat(padding));
 const title = "Maximum title Über # % " + "T".repeat(480);
 const projectName = "Maximum project Über # % " + "P".repeat(480);
@@ -23,7 +24,7 @@ const attachmentName = "Über # % " + "x".repeat(37) + ".txt";
 const attachmentBytes = "synthetic depth-check original bytes\n";
 let browser;
 try {
-  assert.equal(archive.length, 95);
+  assert.equal(archive.length, 63);
   assert.equal(attachmentName.length, 50);
   const convo = conversation("c".repeat(200), title);
   convo.mapping.question.message.metadata.attachments = [{ id: "file-" + "a".repeat(195), name: attachmentName }];
@@ -32,7 +33,7 @@ try {
     gizmoId: "g-" + "p".repeat(198), name: projectName, gizmo: { name: projectName }, files: [],
     conversations: [{ id: convo.conversation_id, title, create_time: convo.create_time, update_time: convo.update_time }],
   }];
-  const report = await runExport("SYNTHETIC-TOKEN", archive, 1, false, false, { identity, gpts: false }, () => {}, {
+  const report = await runExport("SYNTHETIC-TOKEN", archive, 1, false, false, { identity, gpts: false, organizeFolders: true }, () => {}, {
     ...f.deps,
     downloadFile: async (_id, _token, _fallback, _debug, _project, _conversation, destination) => {
       writeFileSync(destination, attachmentBytes);
@@ -40,7 +41,7 @@ try {
     },
   });
   assert.equal(report.status, "complete-within-requested-scope", JSON.stringify(report.errors));
-  const manifest = JSON.parse(readFileSync(join(archive, "archive-manifest.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(workPath(archive, "archive-manifest.json"), "utf8"));
   const media = manifest.files.filter(file => file.path.includes("/files/") && !file.path.endsWith("/.file-map.json"));
   assert.equal(media.length, 1);
   assert.ok(media.every(file => file.path.length <= 200));
@@ -76,14 +77,14 @@ try {
   await context.route(/^https?:\/\//i, route => route.abort());
   const page = await context.newPage();
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto(pathToFileURL(join(restored, "index.html")).href);
+  await page.goto(pathToFileURL(join(contentRoot(restored), "index.html")).href);
   await page.locator(".nav-proj-btn").click();
   await page.getByRole("link", { name: title, exact: true }).click();
   const frame = page.frameLocator("#frame");
   await frame.getByRole("heading", { name: title, exact: true }).waitFor();
   const attachment = frame.locator("a.attachment");
   assert.equal(await attachment.count(), 1);
-  const record = collectLocalConversations(restored)[0];
+  const record = collectLocalConversations(contentRoot(restored))[0];
   const linked = new URL(await attachment.getAttribute("href"), pathToFileURL(join(record.baseDir, "html", record.fname + ".html")));
   assert.equal(decodeURIComponent(linked.pathname).endsWith(attachmentName), true);
   const popupPromise = context.waitForEvent("page");

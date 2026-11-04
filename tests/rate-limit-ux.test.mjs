@@ -47,7 +47,7 @@ async function interfaceFixture(completion, earlyEvents = []) {
     document, navigator: { platform: "Win32" }, window: { fetch: fakeFetch },
     location: { hash: "#key=synthetic-launch-capability", pathname: "/" }, history: { replaceState() {} },
     localStorage: { getItem() { return null; }, setItem() {} },
-    URLSearchParams, AbortController, TextDecoder, Uint8Array, Response, setTimeout, clearTimeout,
+    URLSearchParams, AbortController, TextDecoder, Uint8Array, Response, setTimeout, clearTimeout, setInterval, clearInterval,
   });
   vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], context);
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -67,8 +67,8 @@ test("partial/429 completion is a warning, titles remain literal text and sessio
   const result = f.elements.get("result");
   assert.equal(result.className, "result warning");
   assert.ok(result.textContent.includes(marker));
-  assert.ok(result.textContent.includes("1 conversation(s) remain"));
-  assert.ok(result.textContent.includes("Retry-After: 60"));
+  assert.ok(result.textContent.includes("1 unprocessed conversation(s) remain"));
+  assert.ok(result.textContent.includes("Retry-After (seconds or date): 60"));
   assert.ok(!result.textContent.includes("No saved progress was lost"));
   assert.equal(f.sessionClearedAtSend, true);
   assert.equal(f.elements.get("token-input").value, "");

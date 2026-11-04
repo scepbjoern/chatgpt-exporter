@@ -1,5 +1,18 @@
 # Changes
 
+## 3.4.0-review.0 — 2026-11-04
+
+- Add bounded automatic retries, adaptive pacing, Retry-After countdown and safe cancellation.
+- Add read-only selection preview with session reuse and disabled-start explanations.
+- Organize the interface into six steps; enable all Markdown options and all branches by default.
+- Use UTC creation date, up to 32 title characters and stable identity in chat filenames.
+- Always create a Markdown index; offer a separate searchable HTML index with date/title controls.
+- Group new UI archives into readable `archive/` and technical `_work/`; preserve legacy layouts.
+- Preserve project resource extensions, enrich project summaries and report missing-file context/counts.
+- Record sanitized run settings and distinguish local presence from per-run checks.
+- This review candidate has no bundled runtime and no renewed external AI/security review yet.
+
+
 ## Post-review corrections — 2026-11-03, unreleased
 
 - Address targeted Opus findings N1–N9: deduplicate unchanged publication, remove redundant committed stages after validation, preserve disabled views and referenced media across moves, and refresh navigation after partial exports.

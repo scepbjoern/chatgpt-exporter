@@ -15,7 +15,7 @@ const channel = process.env.CGE_BROWSER_CHANNEL;
 assert.ok(["chromium", "firefox", "webkit"].includes(engine), "Unknown CGE_BROWSER_ENGINE");
 const browser = await ({ chromium, firefox, webkit })[engine].launch(channel ? { channel } : {});
 try {
-  for (const subdir of ["html", "files", "archived/html", "deleted/html", "projects/Project_stable/html", "projects/Project_stable/resources"]) {
+  for (const subdir of ["json", "html", "files", "archived/html", "deleted/html", "projects/Project_stable/html", "projects/Project_stable/resources"]) {
     mkdirSync(join(archive, subdir), { recursive: true });
   }
   const title = "Überblick Q&A — 100% #1";
@@ -43,6 +43,8 @@ try {
   ]));
   writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%.png" }));
   writeFileSync(join(archive, "html/second.html"), conversationToHtml({ ...convo, title: "Other title" }));
+  writeFileSync(join(archive, "json/chat #%.json"), JSON.stringify(convo));
+  writeFileSync(join(archive, "json/second.json"), JSON.stringify({ ...convo, conversation_id: "second", title: "Other title", create_time: 1735689600 }));
   writeFileSync(join(archive, "archived/html/archived.html"), conversationToHtml({ ...convo, title: "Archived fixture" }));
   writeFileSync(join(archive, "deleted/html/deleted.html"), conversationToHtml({ ...convo, title: "Deleted fixture" }));
   writeFileSync(join(archive, "projects/Project_stable/project-info.md"), "# Project\n\n**Instructions readable**\n\n" + attack);
@@ -60,6 +62,14 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto(pathToFileURL(join(archive, "index.html")).href);
+  await page.locator("#date-from").fill("2024-01-01");
+  assert.equal(await page.getByRole("link", { name: title, exact: true }).isVisible(), false);
+  assert.equal(await page.getByRole("link", { name: "Other title", exact: true }).isVisible(), true);
+  await page.locator("#date-from").fill("");
+  await page.locator("#sort").selectOption("oldest");
+  assert.equal(await page.locator(".nav-section").first().locator(".nav-row").first().getAttribute("data-title"), title);
+  await page.locator("#sort").selectOption("title");
+  assert.equal(await page.locator(".nav-section").first().locator(".nav-row").first().getAttribute("data-title"), "Other title");
   await page.getByRole("textbox", { name: "Search conversation titles" }).fill("Q&A");
   assert.equal(await page.getByRole("link", { name: "Other title", exact: true }).isVisible(), false);
   const selected = page.getByRole("link", { name: title, exact: true });
@@ -93,7 +103,7 @@ try {
   }
   assert.deepEqual(requests.filter((url) => !url.startsWith("file:") && url !== "about:blank"), []);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ result: "passed", engine, channel: channel || "bundled", browser: await browser.version(), platform: process.platform, networkIsolation: engine === "webkit" ? "HTTP(S) blocked; WebKit offline emulation also rejects file pages" : "offline emulation and HTTP(S) blocked", checks: ["file URL with special characters", "offline assistant/tool content", "inert attack markers", "no automatic network requests", "local raster image", "title search", "hash reload", "project info", "archived/deleted navigation"] }, null, 2));
+  console.log(JSON.stringify({ result: "passed", engine, channel: channel || "bundled", browser: await browser.version(), platform: process.platform, networkIsolation: engine === "webkit" ? "HTTP(S) blocked; WebKit offline emulation also rejects file pages" : "offline emulation and HTTP(S) blocked", checks: ["file URL with special characters", "offline assistant/tool content", "inert attack markers", "no automatic network requests", "local raster image", "title search", "creation-date filter and date/title sorting", "hash reload", "project info", "archived/deleted navigation"] }, null, 2));
   await context.close();
 } finally {
   await browser.close();

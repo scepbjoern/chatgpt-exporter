@@ -1,3 +1,4 @@
+import { workPath } from "../lib/archive-layout.js";
 import { readFileSync, existsSync, lstatSync, realpathSync } from "node:fs";
 import { resolve, join, relative, isAbsolute, sep } from "node:path";
 import { sha256 } from "../lib/archive-store.js";
@@ -8,7 +9,7 @@ const finalStatuses = new Set(["complete-within-requested-scope", "partial"]);
 
 function operationSnapshot() {
   if (existsSync(join(root, ".export-lock"))) throw new Error("Archive operation is incomplete or still locked; finish recovery before verification.");
-  const markerPath = join(root, "archive-operation.json");
+  const markerPath = workPath(root, "archive-operation.json");
   if (!existsSync(markerPath)) throw new Error("Archive operation is incomplete: the operation marker is missing.");
   const bytes = readFileSync(markerPath, "utf8");
   let marker;
@@ -20,7 +21,7 @@ function operationSnapshot() {
 }
 
 try {
-  const manifest = JSON.parse(readFileSync(join(root, "archive-manifest.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(workPath(root, "archive-manifest.json"), "utf8"));
   if (manifest.version !== 1 || !Array.isArray(manifest.files)) throw new Error("Invalid archive manifest");
   let current;
   try {
