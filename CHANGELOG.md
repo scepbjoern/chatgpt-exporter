@@ -1,5 +1,12 @@
 # Changes
 
+## 3.4.0-review.2 — 2026-11-04
+
+- Keep 429 backoff pressure across successful requests within a run; escalate fallback pauses from 1 to 15 minutes and still honor longer Retry-After.
+- Reduce pressure and request spacing one step after at least ten successful responses over five stable minutes. Preserve per-request retry limits and cancellation.
+- Add a prominent About this fork comparison against the fixed moisescastellano baseline, preserving upstream credits and licence.
+- Correct obsolete rate-limit notes. No branch consolidation or bundled runtime is included.
+
 ## 3.4.0-review.1 — 2026-11-04
 
 - Put the selection preview first, show its counts in a blue panel, report inventory phases and clear stale progress on completion.

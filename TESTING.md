@@ -1,5 +1,11 @@
 # Test record
 
+## 3.4.0-review.2 — 2026-11-04
+
+Three additional fake-clock cases cover 429 escalation across successful requests, partial recovery after both time/count thresholds, no recovery from many quick successes, a new-run reset and a longer server minimum. The existing retry, interruption and archive suite remains required. Current CI and package results are recorded separately after execution; no completed real-account rate-limit test is claimed.
+
+All 27 core test files passed locally on Windows / Node.js 24.11.0; the strengthened pacing-recovery case also passed. Installation and launching under a managed standard-user account without administrator rights remain an explicit manual pilot requirement. Hosted CI does not establish that device policy permits installation.
+
 ## 3.4.0-review.1 — 2026-11-04
 
 Windows / Node 24.11.0: all 27 core test files passed. New synthetic cases cover static presentation widgets, read-only forms with unevaluated expressions, exact/unknown/conflicting citations, literal code preservation, separate branch continuations and preview inventory phases. The count-drift regression now requires a clean completion when the final count reconciles and retains mismatch/page-error checks.

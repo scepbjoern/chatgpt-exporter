@@ -93,8 +93,46 @@ function retryClient(statuses, extra = {}) {
   const client = createApiClient({ apiBase: "https://synthetic.invalid/api", testOrigins: ["https://synthetic.invalid"], autoRetry: true, minIntervalMs: 1000,
     now: () => time, sleep: async ms => { waits.push(ms); time += ms; },
     fetch: async () => { const [status, retry] = statuses[Math.min(calls++, statuses.length - 1)]; return new Response(JSON.stringify({ ok: true }), { status, headers: retry ? { "retry-after": retry } : {} }); }, onWait: e => events.push(e), ...extra });
-  return { client, waits, events, calls: () => calls };
+  return { client, waits, events, calls: () => calls, advance: ms => { time += ms; } };
 }
+
+test("rate-limit pauses grow across successful requests and retain the server minimum", async () => {
+  const f = retryClient([[429], [200], [429], [200], [429], [200], [429], [200], [429], [200], [429, "1200"], [200]]);
+  for (let i = 0; i < 6; i++) await f.client.apiGet(`example-${i}`, "FAKE");
+  assert.deepEqual(f.events.filter(e => e.reason === "rate-limit").map(e => e.delayMs), [60000, 120000, 240000, 480000, 900000, 1200000]);
+  assert.equal(f.calls(), 12);
+});
+
+test("backoff and spacing decay one step only after ten successes and five stable minutes", async () => {
+  const statuses = [[429], [200], [429], [200]];
+  for (let i = 0; i < 9; i++) statuses.push([200]);
+  statuses.push([200], [200], [429], [200]);
+  const f = retryClient(statuses);
+  await f.client.apiGet("first", "FAKE"); await f.client.apiGet("second", "FAKE");
+  f.advance(5 * 60_000);
+  for (let i = 0; i < 8; i++) await f.client.apiGet(`stable-${i}`, "FAKE");
+  // Nine successes, including the successful retry, still retain 2250 ms pacing.
+  assert.equal(f.waits.at(-1), 2250);
+  await f.client.apiGet("tenth", "FAKE");
+  const before = f.waits.length;
+  await f.client.apiGet("after-decay", "FAKE");
+  // The prior successful request already scheduled one final 2250 ms interval.
+  assert.equal(f.waits[before], 2250);
+  await f.client.apiGet("after-decay-second", "FAKE");
+  assert.equal(f.waits.at(-1), 1500, "spacing recovers one step, not all the way to the minimum");
+  await f.client.apiGet("limited-again", "FAKE");
+  assert.deepEqual(f.events.filter(e => e.reason === "rate-limit").map(e => e.delayMs), [60000, 120000, 120000]);
+});
+
+test("many quick successes do not decay pressure and a new run resets it", async () => {
+  const statuses = [[429], [200], ...Array.from({ length: 12 }, () => [200]), [429], [200], [429], [200]];
+  const f = retryClient(statuses);
+  for (let i = 0; i < 14; i++) await f.client.apiGet(`quick-${i}`, "FAKE");
+  assert.deepEqual(f.events.filter(e => e.reason === "rate-limit").map(e => e.delayMs), [60000, 120000]);
+  f.client.resetRateLimiter();
+  await f.client.apiGet("new-run", "FAKE");
+  assert.deepEqual(f.events.filter(e => e.reason === "rate-limit").map(e => e.delayMs), [60000, 120000, 60000]);
+});
 test("429 respects a long HTTP-date Retry-After, resumes the same request and emits waits", async () => {
   const f = retryClient([[429, "Thu, 01 Jan 2026 00:10:00 GMT"], [200]]);
   assert.deepEqual(await f.client.apiGet("example", "FAKE"), { ok: true });
