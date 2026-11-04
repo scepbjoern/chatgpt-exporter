@@ -10,8 +10,11 @@ export function conversation(id = "sameprefix-one", title = "Q&A Ä # %", time =
     answer: { id: "answer", parent: "question", children: [], message: { id: "answer", author: { role: "assistant" }, content: { content_type: "text", parts: ["Assistant answer"] }, metadata: {} } },
   } };
 }
-export function fixture() {
-  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "cge-integration-")));
+export function fixture({ shortRoot = false } = {}) {
+  // Maximum-name success cases need a short archive destination on macOS too;
+  // its per-user temporary directory alone can consume 80 path characters.
+  const temp = shortRoot && process.platform === "darwin" ? "/tmp" : tmpdir();
+  const root = realpathSync.native(mkdtempSync(join(temp, "cge-integration-")));
   const state = { conversations: [conversation()], archived: [], projects: [], fileError: null, calls: [], inventoryOverride: null, gpts: [] };
   const deps = {
     resetRateLimiter() {}, setApiWorkspace() {}, getRateLimitState() { return { stopped: false }; },

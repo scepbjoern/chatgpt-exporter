@@ -104,7 +104,7 @@ test("compact keys persist full IDs and extend collisions without replacing earl
 });
 
 test("maximum input names produce compact paths and distinct raw identities", async () => {
-  const f = fixture(); try {
+  const f = fixture({ shortRoot: true }); try {
     f.state.conversations = [conversation("first", "T".repeat(100)), conversation("second", "T".repeat(100))];
     f.state.projects = [{ gizmoId: "project", name: "P".repeat(100), gizmo: { name: "P".repeat(100) }, files: [], conversations: f.state.conversations.map(c => ({ id: c.conversation_id, title: c.title })) }];
     const digest = id => "a".repeat(20) + (id === "first" ? "b" : "c").repeat(44);

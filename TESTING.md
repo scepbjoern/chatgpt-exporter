@@ -6,7 +6,7 @@ The implementing agent ran all **26 core test files** successfully on Windows / 
 
 Chromium 145.0.7632.6 passed offline archive navigation and the local UI, including disabled-start reasons, all Markdown defaults, preview/session reuse, invalid dates and stale-preview indication. The native Windows ZIP round trip with organized folders passed: source root 63 characters, restored root 73, longest paths 240/250, matching manifests and an actually opened local attachment. A synthetic UI screenshot was visually inspected; no private archive or real token was used for these checks.
 
-Current macOS CI is pending until this code is pushed and its job finishes; earlier CI results do not validate this version. No unattended real-account overnight run or renewed Opus review is claimed.
+Firefox 146.0.1 also passed the offline archive and UI checks on Windows. The first new-version CI run, [41818638381](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41818638381), passed Windows but failed the macOS maximum-name success case: the per-user temporary root plus the new dated names exceeded the unchanged 250-character archive guard. That fixture now explicitly chooses a short temporary root on macOS, consistent with the documented short-output-folder requirement. Other fixtures keep the normal system temporary directory. The corrected tree passed all 26 core test files again on Windows; its new CI result must be checked separately. No unattended real-account overnight run or renewed Opus review is claimed.
 
 The sections below are historical records for earlier commits.
 
