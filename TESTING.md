@@ -1,5 +1,11 @@
 # Test record
 
+## 3.4.0-review.1 — 2026-11-04
+
+Windows / Node 24.11.0: all 27 core test files passed. New synthetic cases cover static presentation widgets, read-only forms with unevaluated expressions, exact/unknown/conflicting citations, literal code preservation, separate branch continuations and preview inventory phases. The count-drift regression now requires a clean completion when the final count reconciles and retains mismatch/page-error checks.
+
+Chromium offline/UI and the native ZIP/deep-path check passed. Browser checks exercise refreshed-token preview validity, control order, blue preview and terminal status, green saved results alongside an orange missing-file panel, inert attack markers, collapsible GPT metadata, branch toggles and original links. Synthetic screenshots were visually inspected. CI on this exact next commit must be checked separately; no real-account overnight run or renewed external review is claimed.
+
 ## 3.4.0-review.0 — 2026-11-04
 
 The implementing agent ran all **26 core test files** successfully on Windows / Node.js 24.11.0. Eight new focused cases cover dated 32-character Unicode names, organized export/resume/regeneration and manifest integrity, legacy filename migration without re-downloading chats, preview with no archive writes, project PDF extensions and missing-file context, long HTTP-date Retry-After, bounded 5xx/429 handling, and cancellation during a wait. Existing inventory validation tests still pass after sharing enumeration with preview.

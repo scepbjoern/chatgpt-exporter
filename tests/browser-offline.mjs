@@ -15,7 +15,7 @@ const channel = process.env.CGE_BROWSER_CHANNEL;
 assert.ok(["chromium", "firefox", "webkit"].includes(engine), "Unknown CGE_BROWSER_ENGINE");
 const browser = await ({ chromium, firefox, webkit })[engine].launch(channel ? { channel } : {});
 try {
-  for (const subdir of ["json", "html", "files", "archived/html", "deleted/html", "projects/Project_stable/html", "projects/Project_stable/resources"]) {
+  for (const subdir of ["json", "html", "files", "gpts", "archived/html", "deleted/html", "projects/Project_stable/html", "projects/Project_stable/resources"]) {
     mkdirSync(join(archive, subdir), { recursive: true });
   }
   const title = "Überblick Q&A — 100% #1";
@@ -48,6 +48,10 @@ try {
   writeFileSync(join(archive, "archived/html/archived.html"), conversationToHtml({ ...convo, title: "Archived fixture" }));
   writeFileSync(join(archive, "deleted/html/deleted.html"), conversationToHtml({ ...convo, title: "Deleted fixture" }));
   writeFileSync(join(archive, "projects/Project_stable/project-info.md"), "# Project\n\n**Instructions readable**\n\n" + attack);
+  convo.mapping.tool.children = ["variant1", "variant2"];
+  for (const [id, text] of [["variant1", '<box><text>Readable widget</text><Link url="https://example.invalid/source" title="Saved source"/></box>'], ["variant2", 'Second branch response']]) convo.mapping[id] = { parent: "tool", children: [], message: { author: { role: "assistant" }, content: { content_type: "text", parts: [text] } } };
+  writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%.png" }));
+  writeFileSync(join(archive, "gpts", "fixture.md"), "# Synthetic GPT\n\nDescription");
   generateExportIndex(archive, [{ name: "Project Q&A", folderName: "Project_stable" }]);
 
   // Playwright WebKit's offline emulation rejects even a trivial file: page.
@@ -62,14 +66,19 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto(pathToFileURL(join(archive, "index.html")).href);
+  const gpt = page.locator('.gpt-section');
+  assert.equal(await gpt.getAttribute('open'), null);
+  await gpt.locator('summary').click();
+  assert.equal(await gpt.locator('a').isVisible(), true);
+  await gpt.locator('summary').click();
   await page.locator("#date-from").fill("2024-01-01");
   assert.equal(await page.getByRole("link", { name: title, exact: true }).isVisible(), false);
   assert.equal(await page.getByRole("link", { name: "Other title", exact: true }).isVisible(), true);
   await page.locator("#date-from").fill("");
   await page.locator("#sort").selectOption("oldest");
-  assert.equal(await page.locator(".nav-section").first().locator(".nav-row").first().getAttribute("data-title"), title);
+  assert.equal(await page.locator(".nav-row").first().getAttribute("data-title"), title);
   await page.locator("#sort").selectOption("title");
-  assert.equal(await page.locator(".nav-section").first().locator(".nav-row").first().getAttribute("data-title"), "Other title");
+  assert.equal(await page.locator(".nav-row").first().getAttribute("data-title"), "Other title");
   await page.getByRole("textbox", { name: "Search conversation titles" }).fill("Q&A");
   assert.equal(await page.getByRole("link", { name: "Other title", exact: true }).isVisible(), false);
   const selected = page.getByRole("link", { name: title, exact: true });
@@ -77,6 +86,14 @@ try {
   await selected.click();
   let frame = page.frameLocator("#frame");
   await frame.getByText("Assistant readable", { exact: true }).waitFor();
+  assert.equal(await frame.locator('nav.sidebar').count(), 0);
+  assert.equal(await frame.getByRole('link', { name: 'Open original in ChatGPT' }).getAttribute('href'), 'https://chatgpt.com/c/synthetic-browser');
+  await frame.getByText('Readable widget', { exact: true }).waitFor();
+  assert.equal(await frame.locator('.branch').count(), 2);
+  await frame.getByText('Variant 2 of 2 — separate continuation', { exact: true }).click();
+  assert.equal(await frame.getByText('Second branch response', { exact: true }).isVisible(), false);
+  await frame.getByText('Variant 2 of 2 — separate continuation', { exact: true }).click();
+  if (process.env.CGE_SCREENSHOT_DIR) { await frame.getByText('Variant 1 of 2 — separate continuation', { exact: true }).scrollIntoViewIfNeeded(); await page.screenshot({path:join(process.env.CGE_SCREENSHOT_DIR,'review1-branches.png')}); }
   await frame.getByText("Output", { exact: true }).click();
   await frame.getByText("Tool readable", { exact: false }).waitFor();
   assert.equal(await frame.locator("body").evaluate(() => window.ATTACK), undefined);

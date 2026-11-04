@@ -64,8 +64,8 @@ async function interfaceFixture(completion, earlyEvents = []) {
 test("partial/429 completion is a warning, titles remain literal text and session textarea is cleared", async () => {
   const marker = '<img src=x onerror="synthetic-marker">';
   const f = await interfaceFixture({ total: 2, processed: 1, remaining: 1, failed: 1, failedTitles: [marker], rateLimited: true, rateLimitRetryAfter: "60", output: "synthetic-archive" });
-  const result = f.elements.get("result");
-  assert.equal(result.className, "result warning");
+  const result = f.elements.get("issue-result");
+  assert.equal(result.className, "result error");
   assert.ok(result.textContent.includes(marker));
   assert.ok(result.textContent.includes("1 unprocessed conversation(s) remain"));
   assert.ok(result.textContent.includes("Retry-After (seconds or date): 60"));
@@ -81,8 +81,8 @@ test("partial/429 completion is a warning, titles remain literal text and sessio
 
 test("non-conversation issues prevent a green completion even when conversation failures are zero", async () => {
   const f = await interfaceFixture({ total: 1, succeeded: 1, failed: 0, errors: [{ category: "project", message: "Synthetic project resource failure" }], output: "synthetic-archive" });
-  assert.equal(f.elements.get("result").className, "result warning");
-  assert.match(f.elements.get("result").textContent, /Synthetic project resource failure/);
+  assert.equal(f.elements.get("issue-result").className, "result error");
+  assert.match(f.elements.get("issue-result").textContent, /Synthetic project resource failure/);
 });
 
 
@@ -91,9 +91,9 @@ test("early rate-limit/error events do not discard the final durable report", as
     { type: "rate_limited", data: { message: "Early synthetic 429" } },
     { type: "error_msg", data: "Early synthetic failure" },
   ]);
-  assert.match(f.elements.get("result").textContent, /Final persistent media issue/);
+  assert.match(f.elements.get("issue-result").textContent, /Final persistent media issue/);
   assert.match(f.elements.get("result").textContent, /synthetic-final-report-folder/);
-  assert.equal(f.elements.get("result").className, "result warning");
+  assert.equal(f.elements.get("issue-result").className, "result error");
 });
 
 test("intentional absence of deletion inference does not mislabel an otherwise complete requested scope", async () => {

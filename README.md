@@ -85,3 +85,10 @@ folder for resuming, integrity verification and recovery. Never discard `_work/`
 while an operation is incomplete: it may contain unpublished raw data or historical
 versions not present in the reading copy. Legacy archives are not automatically
 reorganized. No automatic cleanup or portable bundled Node runtime is included.
+
+
+### Readable archive updates (3.4.0-review.1)
+
+Known presentation widgets are converted to static content in Markdown and HTML; archived form choices are read-only. Citation links use saved metadata, with unavailable details explicitly marked. HTML groups tree alternatives into separate expandable continuations, links back to the original chat and collapses GPT metadata. Literal code and raw JSON are retained. The offline archive cannot reproduce every ChatGPT-specific interactive component.
+
+Preview counts appear in a blue panel before Start Export. Inventory reading reports its phase and page counts. A refreshed token for the same account does not invalidate the selection. Saved content, missing files and other errors have separate result panels. Changing totals remain diagnostic-only when the final advertised total matches the discovered count; this is not an independent completeness guarantee.

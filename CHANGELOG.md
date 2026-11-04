@@ -1,5 +1,15 @@
 # Changes
 
+## 3.4.0-review.1 — 2026-11-04
+
+- Put the selection preview first, show its counts in a blue panel, report inventory phases and clear stale progress on completion.
+- Keep previews valid when refreshing credentials for the same account or changing non-selection options.
+- Separate saved results, unavailable files and other failures into distinct result panels.
+- Retain count drift as diagnostics without warning when the final advertised count agrees with discovered items.
+- Translate known presentation widgets into static Markdown/HTML, resolve citations from saved metadata and preserve literal code examples. Forms are read-only; no provider expressions are evaluated.
+- Render conversation-tree alternatives as separate nested continuations, add original-chat links, remove empty inner navigation and collapse GPT metadata.
+- Preserve the raw data and existing network/security boundaries. Default-app launching is not in scope.
+
 ## 3.4.0-review.0 — 2026-11-04
 
 - Add bounded automatic retries, adaptive pacing, Retry-After countdown and safe cancellation.

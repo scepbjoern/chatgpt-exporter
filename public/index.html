@@ -201,6 +201,7 @@
   .fp-new-row input:focus { border-color: #3b82f6; }
   .fp-new-row button { width: auto; padding: 7px 14px; font-size: 13px; border-radius: 6px; }
 .options-hint,.action-hint{color:#a8b6ca;font-size:12px;line-height:1.5}h2{font-size:18px;margin:26px 0 14px;color:#dce6f5}.tooltip-wrap{position:relative}.tooltip-wrap [role=tooltip]{display:none;position:absolute;z-index:10;left:0;right:0;bottom:100%;background:#0f172a;color:#e2e8f0;border:1px solid #64748b;border-radius:6px;padding:12px;font-size:13px}.tooltip-wrap:hover [role=tooltip],.tooltip-wrap:focus-within [role=tooltip]{display:block}.tooltip-wrap button{width:100%}button:disabled{opacity:.45;cursor:not-allowed}
+.preview-box {background:#173d68;border:1px solid #60a5fa;border-radius:10px;padding:18px;color:#eff6ff;font-size:16px;line-height:1.7;white-space:pre-wrap;margin:14px 0;}
 </style>
 </head>
 <body>
@@ -383,10 +384,10 @@
       </div>
   <h2>6. Preview or start</h2>
   <p id="session-status" class="options-hint" aria-live="polite"></p>
+  <button id="preview-btn" class="secondary-action" disabled>Preview selection</button>
+  <p id="preview-result" class="preview-box hidden" aria-live="polite"></p>
   <div id="start-wrapper" class="tooltip-wrap" tabindex="0" aria-describedby="start-reasons"><button id="export-btn" data-handler-18="" disabled>Start Export</button><span id="start-reasons" role="tooltip"></span></div>
   <div class="action-hint">After completion and checking the report, use Finder or Explorer to ZIP the readable archive folder. Keep the working folder for resuming or recovery.</div>
-  <button id="preview-btn" class="secondary-action" disabled>Preview selection</button>
-  <p id="preview-result" class="options-hint" aria-live="polite"></p>
   <button id="cancel-btn" class="secondary-action hidden">Stop safely</button>
   <div class="tooltip-wrap"><button id="regenerate-md-btn" class="secondary-action" data-handler-19="" aria-describedby="regenerate-help">Regenerate local views</button><span id="regenerate-help" role="tooltip">Use after a display fix or to change Markdown options. Rebuilds Markdown, HTML and indexes from saved local JSON and attachments. No ChatGPT requests or new downloads. Existing views are replaced.</span></div>
 
@@ -398,6 +399,8 @@
   </div>
 
   <div id="result" class="result hidden"></div>
+  <div id="file-result" class="result warning hidden" aria-live="polite"></div>
+  <div id="issue-result" class="result hidden" aria-live="polite"></div>
 </div>
 
 <script>
@@ -407,7 +410,7 @@
   let cachedSession = null;
   let credentialExpiry = null;
   let busy = false;
-  let activeJob = null, retryTimer = null, previewValid = false;
+  let activeJob = null, retryTimer = null, previewValid = false, previewSelection = null;
   const nativeFetch = window.fetch.bind(window);
   const apiFetch = (url, options = {}) => nativeFetch(url, {
     ...options,
@@ -848,36 +851,50 @@
   function completionResult(d, regeneration = false) {
     const issues = Array.isArray(d.errors) ? d.errors : [];
     const remaining = d.remaining ?? Math.max(0, (d.total || 0) - (d.processed || 0));
-    const incomplete = d.rateLimited || d.failed > 0 || d.failedFiles > 0 || issues.length > 0 || d.status === 'partial' || d.status === 'failed' || d.status === 'warning' || (!regeneration && d.deletionReconciliationComplete === false && d.status !== 'complete-within-requested-scope');
-    let message = regeneration
+    const saved = (d.succeeded || 0) + (d.updated || 0) + (d.skipped || 0);
+    const success = regeneration
       ? `${d.succeeded || 0} of ${d.total || 0} local conversation views regenerated (Markdown and HTML).`
-      : `${d.succeeded || 0} new · ${d.updated || 0} updated · ${d.skipped || 0} resumed · ${d.failed || 0} failed.`;
-    if (!regeneration) message += `\nProjects: ${d.projects || 0} saved · GPT metadata: ${d.gpts || 0} saved.`;
-    if (d.cancelled) message = 'Stopped safely. Existing files are preserved.\n' + message;
-    if (d.rateLimited) message = 'Automatic retries exhausted; this run has stopped.\n' + message + `\n${remaining} unprocessed conversation(s) remain, plus ${d.failed || 0} failed. Start again later in the same folder.`;
-    if (d.rateLimitRetryAfter || d.retryAfter) message += '\nServer Retry-After (seconds or date): ' + (d.rateLimitRetryAfter || d.retryAfter);
-    if (d.totalFiles) message += `\nFiles: ${d.totalFiles - (d.failedFiles || 0)} of ${d.totalFiles} references available; ${d.failedFiles || 0} could not be downloaded.`;
-    if (d.missingFiles?.length) message += '\nUnavailable files may no longer exist or be accessible on ChatGPT. See missing-files.md in the readable archive.\n' + d.missingFiles.map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''}`).join('\n');
-    if (d.failedTitles?.length) message += '\nFailed conversations: ' + d.failedTitles.join(', ');
-    const otherIssues = issues.filter(e => !['media','project-resource'].includes(e.category));
-    if (otherIssues.length) message += '\nOpen issues: ' + otherIssues.map(e => typeof e === 'string' ? e : e.message || JSON.stringify(e)).join('\n');
-    if (d.output) message += '\nSaved to: ' + (d.archive || d.output);
-    if (!regeneration) message += '\nReview the report before archiving. Keep the complete output folder for resuming; absence from the inventory is not proof of deletion.';
-    showResult(incomplete ? 'warning' : 'success', message);
-    document.getElementById('progress-bar').style.background = incomplete ? '#f59e0b' : '#22c55e';
+      : `Saved successfully: ${saved} conversations.\n${d.succeeded || 0} new · ${d.updated || 0} updated · ${d.skipped || 0} resumed.\nProjects: ${d.projects || 0} saved · GPT metadata: ${d.gpts || 0} saved.`;
+    showResult(saved || d.projects || d.gpts || d.status === 'complete-within-requested-scope' ? 'success' : 'info', success + (d.output ? '\nSaved to: ' + (d.archive || d.output) : '') + '\nKeep the complete output folder for resuming; absence from the inventory is not proof of deletion.');
+    const files = document.getElementById('file-result');
+    files.className = 'result ' + (d.failedFiles ? 'warning' : 'success') + (d.totalFiles ? '' : ' hidden');
+    files.style.whiteSpace = 'pre-wrap';
+    files.textContent = `Files: ${(d.totalFiles || 0) - (d.failedFiles || 0)} of ${d.totalFiles || 0} references available; ${d.failedFiles || 0} could not be downloaded.`;
+    if (d.failedFiles) files.textContent += '\nIndividual unavailable files may no longer exist or be accessible on ChatGPT. If a file is also unavailable there, repeating the export cannot restore it. See missing-files.md.\n' + (d.missingFiles || []).map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''}`).join('\n');
+    const otherIssues = issues.filter(e => !['media', 'project-resource'].includes(e.category));
+    const stopped = d.cancelled || d.rateLimited || remaining > 0;
+    const serious = d.failed > 0 || d.status === 'failed' || otherIssues.some(e => !['inventory-consistency','inventory-absence','keep-awake'].includes(e.category));
+    const issueBox = document.getElementById('issue-result');
+    const notes = [];
+    if (d.cancelled) notes.push('Stopped safely. Existing files are preserved.');
+    if (d.rateLimited) notes.push('Automatic retries exhausted; this run has stopped.');
+    if (stopped) notes.push(`${remaining} unprocessed conversation(s) remain, plus ${d.failed || 0} failed. Start again later in the same folder.`);
+    if (d.rateLimitRetryAfter || d.retryAfter) notes.push('Server Retry-After (seconds or date): ' + (d.rateLimitRetryAfter || d.retryAfter));
+    if (d.failed) notes.push(`${d.failed} conversation(s) failed. ` + (d.failedTitles || []).join(', '));
+    notes.push(...otherIssues.map(e => typeof e === 'string' ? e : e.message || 'Export issue'));
+    if (!notes.length && ['partial','warning','failed'].includes(d.status) && !d.failedFiles) notes.push('Export incomplete. Review the saved report.');
+    issueBox.className = 'result ' + (serious ? 'error' : 'warning') + (notes.length ? '' : ' hidden');
+    issueBox.style.whiteSpace = 'pre-wrap'; issueBox.textContent = notes.join('\n');
+    document.getElementById('progress-text').textContent = stopped ? 'Export stopped — saved results are listed below.' : notes.length || d.failedFiles ? 'Finished with issues — saved results are listed below.' : 'Completed.';
+    if (!stopped) document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-bar').style.background = notes.length || d.failedFiles ? '#f59e0b' : '#22c55e';
   }
 
   async function launchJob(endpoint, payload, regeneration = false) {
     const preview = endpoint === '/preview-export';
-    if (!preview) document.getElementById('token-input').value = '';
+    if (!preview) {
+      document.getElementById('token-input').value = '';
+      previewValid = false; previewSelection = null;
+      document.getElementById('preview-result').classList.add('hidden');
+    }
     setBusy(true);
     document.getElementById('progress-section').classList.remove('hidden');
-    document.getElementById('result').classList.add('hidden');
+    for (const id of ['result','file-result','issue-result']) document.getElementById(id).classList.add('hidden');
     document.getElementById('stats-row').textContent = '';
     document.getElementById('current-title').textContent = '';
     document.getElementById('progress-bar').style.width = '0%';
     document.getElementById('progress-bar').style.background = '#3b82f6';
-    document.getElementById('progress-text').textContent = 'Starting...';
+    document.getElementById('progress-text').textContent = preview ? 'Preparing preview; reading account metadata…' : 'Preparing export; checking local archive and account metadata…';
     try {
       const response = await apiFetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       payload.token = null;
@@ -911,9 +928,11 @@
       progress.addEventListener('done', e => {
         const d = JSON.parse(e.data);
         if (preview) {
-          previewValid = true;
-          document.getElementById('preview-result').textContent = `Preview: ${d.conversations || 0} conversations · ${d.projects || 0} projects · ${d.gpts || 0} GPT metadata records. Counts are a snapshot; export checks again.`;
-          showResult(d.status === 'partial' ? 'warning' : 'success', d.status === 'partial' ? 'Preview coverage is incomplete: ' + (d.errors || []).map(e => e.message).join('\n') : 'Preview ready. Start Export uses the same session while it remains valid.');
+          previewValid = true; previewSelection = selectionSignature();
+          document.getElementById('preview-result').classList.remove('hidden');
+          document.getElementById('progress-text').textContent = d.status === 'partial' ? 'Preview finished with issues.' : 'Preview completed — ready to export.';
+          document.getElementById('preview-result').textContent = `Preview — not exported yet\n${d.conversations || 0} conversations\n${d.projects || 0} projects\n${d.gpts || 0} GPT metadata records\nCounts are a snapshot; export checks again.`;
+          if (d.status === 'partial') showResult('warning', 'Preview finished with issues: ' + (d.errors || []).map(e => e.message).join('\n'));
         } else completionResult(d, regeneration);
         finish();
       });
@@ -979,9 +998,19 @@
     document.getElementById('session-status').textContent = busy ? 'Session is being used by this operation.' : session ? 'Session available for preview/export; server validity is checked on connection.' : 'For another online export, paste the session JSON again. No server restart is needed.';
     return reasons.length === 0;
   }
+  function selectionSignature() {
+    let userId = '';
+    const raw = document.getElementById('token-input').value.trim();
+    try { userId = raw ? JSON.parse(raw).user?.id || '' : cachedSession?.userId || ''; } catch { return null; }
+    return JSON.stringify([userId, document.getElementById('workspace-id').value.trim(),
+      ...['opt-conversations','opt-projects','opt-gpts'].map(id => document.getElementById(id).checked),
+      ...['opt-date-from','opt-date-to'].map(id => document.getElementById(id).value),
+      _selectedProjectIds ? [..._selectedProjectIds].sort() : null]);
+  }
   document.querySelectorAll('.card input, .card textarea, .card select').forEach(el => el.addEventListener('input', () => {
     validateStart();
-    if (previewValid) { document.getElementById('preview-result').textContent = 'Selection changed: the previous preview is out of date.'; previewValid = false; }
+    const signature = selectionSignature();
+    if (previewValid && signature !== null && signature !== previewSelection) { document.getElementById('preview-result').textContent = 'Selection changed: the previous preview is out of date.'; previewValid = false; }
   }));
   document.getElementById('preview-btn').addEventListener('click', () => startExport(true));
   document.getElementById('cancel-btn').addEventListener('click', async () => {

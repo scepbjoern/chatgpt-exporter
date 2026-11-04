@@ -72,7 +72,7 @@ test("missing totals and short pages continue until a real terminal page", async
   } finally { f.cleanup(); }
 });
 
-test("a growing advisory total with no has_more still exports all discovered conversations as partial", async () => {
+test("a growing advisory total with no has_more still exports all discovered conversations without a warning when reconciled", async () => {
   const f = fixture();
   try {
     f.state.conversations = [conversation("growing-a"), conversation("growing-b"), conversation("growing-c")];
@@ -83,15 +83,16 @@ test("a growing advisory total with no has_more still exports all discovered con
       { items: [], total: 3, offset: 3 },
     ]);
     const report = await p.run();
-    assert.equal(report.status, "partial");
-    assert.equal(report.inventory.complete, false);
-    assert.deepEqual(report.inventory.scopes.active.warnings, ["total-drift"]);
+    assert.equal(report.status, "complete-within-requested-scope");
+    assert.equal(report.inventory.complete, true);
+    assert.deepEqual(report.inventory.scopes.active.warnings, []);
+    assert.equal(report.inventory.scopes.active.totalDrift, true);
     assert.equal(report.inventory.scopes.active.discovered, 3);
     assert.equal(report.succeeded, 3);
     assert.deepEqual(storedIds(f), ["growing-a", "growing-b", "growing-c"]);
     const disk = durableReport(f, report);
-    assert.equal(disk.inventory.complete, false);
-    assert.ok(disk.errors.some(error => error.category === "inventory-consistency" && error.id === "active"));
+    assert.equal(disk.inventory.complete, true);
+    assert.ok(!disk.errors.some(error => error.category === "inventory-consistency" && error.id === "active"));
     const saved = JSON.parse(readFileSync(collectLocalConversations(f.root)[0].path, "utf8"));
     assert.equal(saved.mapping.answer.message.content.parts[0], "Assistant answer");
   } finally { f.cleanup(); }
@@ -106,7 +107,7 @@ test("has_more true wins over reaching an old total and exposes numeric drift", 
       { items: [row(f.state.conversations[1])], total: 2, has_more: false },
     ]);
     const report = await p.run();
-    assert.equal(report.status, "partial");
+    assert.equal(report.status, "complete-within-requested-scope");
     assert.equal(report.inventory.scopes.active.terminal, "has-more-false");
     assert.equal(report.inventory.scopes.active.totalChanges, 1);
     assert.equal(report.succeeded, 2);

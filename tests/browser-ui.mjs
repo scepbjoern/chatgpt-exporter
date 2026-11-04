@@ -1,10 +1,11 @@
 // Synthetic loopback UI check. No ChatGPT connection and no real credentials.
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { chromium, firefox, webkit } from "playwright";
 import { createExporterServer } from "../server.js";
 
 const marker = '<img src="https://example.invalid/automatic" onerror="window.ATTACK=true">';
-let receivedToken = null, previewToken = null;
+let receivedToken = null, previewToken = null, exports = 0;
 const { server, key } = createExporterServer({
   previewExport: async (token, options, send) => {
     previewToken = token;
@@ -12,6 +13,9 @@ const { server, key } = createExporterServer({
   },
   runExport: async (token, output, concurrency, zip, keepAwake, options, send) => {
     receivedToken = token;
+    if (++exports > 1) {
+      send("done", JSON.stringify({ total: 9, processed: 9, succeeded: 9, failed: 0, projects: 3, gpts: 19, totalFiles: 14, failedFiles: 1, missingFiles: [{ filename: 'Missing.pdf', projectName: 'Synthetic project' }], errors: [{ category: 'project-resource', message: 'HTTP 404' }], status: 'partial', output })); return;
+    }
     send("done", JSON.stringify({ total: 1, processed: 1, succeeded: 0, updated: 0, skipped: 0, failed: 1, failedTitles: [marker], status: "partial", output }));
   },
 });
@@ -52,6 +56,14 @@ try {
   await page.locator("#preview-result").filter({ hasText: "7 conversations" }).waitFor();
   assert.equal(previewToken, "SYNTHETIC_TOKEN_ONLY");
   assert.notEqual(await page.locator("#token-input").inputValue(), "");
+  assert.match(await page.locator("#progress-text").textContent(), /Preview completed/);
+  assert.equal(await page.locator("#preview-result").getAttribute("class"), "preview-box");
+  assert.ok(await page.locator("#preview-btn").evaluate(el => Boolean(el.compareDocumentPosition(document.getElementById('export-btn')) & Node.DOCUMENT_POSITION_FOLLOWING)));
+  await page.locator("#token-input").fill(JSON.stringify({ accessToken: "SYNTHETIC_REFRESHED", user: { id: "synthetic-user" } }));
+  assert.doesNotMatch(await page.locator("#preview-result").textContent(), /out of date/);
+  await page.locator("#concurrency").selectOption("2");
+  assert.doesNotMatch(await page.locator("#preview-result").textContent(), /out of date/);
+  if (process.env.CGE_SCREENSHOT_DIR) { await page.locator('#preview-btn').scrollIntoViewIfNeeded(); await page.screenshot({path:join(process.env.CGE_SCREENSHOT_DIR,'review1-preview.png')}); }
   await page.locator("#opt-date-from").fill("2026-02-01");
   await page.locator("#opt-date-to").fill("2026-01-01");
   assert.equal(await page.locator("#export-btn").isDisabled(), true);
@@ -62,11 +74,19 @@ try {
   await page.locator("#opt-date-to").fill("");
   assert.equal(await page.locator("#export-btn").isEnabled(), true);
   await page.locator("#export-btn").click();
-  await page.locator("#result").filter({ hasText: marker }).waitFor();
-  assert.equal(receivedToken, "SYNTHETIC_TOKEN_ONLY");
+  await page.locator("#issue-result").filter({ hasText: marker }).waitFor();
+  assert.equal(receivedToken, "SYNTHETIC_REFRESHED");
   assert.equal(await page.locator("#token-input").inputValue(), "");
   assert.equal(await page.locator("#result img").count(), 0);
-  assert.ok((await page.locator("#result").getAttribute("class")).includes("warning"));
+  assert.ok((await page.locator("#issue-result").getAttribute("class")).includes("error"));
+  await page.locator('#token-input').fill(JSON.stringify({ accessToken: 'SYNTHETIC_AGAIN', user: { id: 'synthetic-user' } }));
+  await page.locator('#export-btn').click();
+  await page.locator('#file-result').filter({ hasText: 'Missing.pdf' }).waitFor();
+  assert.equal(await page.locator('#result').getAttribute('class'), 'result success');
+  assert.equal(await page.locator('#file-result').getAttribute('class'), 'result warning');
+  assert.equal(await page.locator('#issue-result').isVisible(), false);
+  assert.match(await page.locator('#result').textContent(), /9 conversations/);
+  if (process.env.CGE_SCREENSHOT_DIR) { await page.locator('#file-result').scrollIntoViewIfNeeded(); await page.mouse.move(0,0); await page.evaluate(() => document.activeElement?.blur()); await page.screenshot({path:join(process.env.CGE_SCREENSHOT_DIR,'review1-result.png')}); }
   assert.equal(await page.evaluate(() => window.ATTACK), undefined);
   assert.deepEqual(requests.filter(url => !url.startsWith(origin + "/")), []);
   assert.deepEqual(errors, []);
