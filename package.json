@@ -1,6 +1,6 @@
 {
   "name": "@scepbjoern/chatgpt-exporter",
-  "version": "3.4.0-review.3",
+  "version": "3.4.0-review.4",
   "description": "Local ChatGPT JSON, Markdown and offline HTML archive; review candidate",
   "type": "module",
   "bin": {

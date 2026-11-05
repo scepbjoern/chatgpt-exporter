@@ -78,6 +78,7 @@ try {
   const page = await context.newPage();
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(pathToFileURL(join(contentRoot(restored), "index.html")).href);
+  await page.locator("#projects-group > summary").click();
   await page.locator(".nav-proj-btn").click();
   await page.getByRole("link", { name: title, exact: true }).click();
   const frame = page.frameLocator("#frame");

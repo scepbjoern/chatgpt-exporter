@@ -58,6 +58,7 @@ c &= d
   for (const [id, text] of [["variant1", '<box><text>Readable widget</text><Link url="https://example.invalid/source" title="Saved source"/></box>'], ["variant2", 'Second branch response']]) convo.mapping[id] = { parent: "tool", children: [], message: { author: { role: "assistant" }, content: { content_type: "text", parts: [text] } } };
   writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%.png" }));
   writeFileSync(join(archive, "gpts", "fixture.md"), "# Synthetic GPT\n\nDescription");
+  writeFileSync(join(archive, "projects/Project_stable/html/example.html"), conversationToHtml({ ...convo, title: "Project-only title" }));
   generateExportIndex(archive, [{ name: "Project Q&A", folderName: "Project_stable" }]);
 
   // Playwright WebKit's offline emulation rejects even a trivial file: page.
@@ -72,19 +73,39 @@ c &= d
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto(pathToFileURL(join(archive, "index.html")).href);
-  const gpt = page.locator('.gpt-section');
+  const groups = page.locator(".sidebar-scroll > details");
+  assert.deepEqual(await groups.locator("summary").allTextContents(), ["GPTs (metadata)", "Projects", "Conversations"]);
+  assert.equal(await page.locator(".sidebar-scroll > details[open]").count(), 0);
+  const gpt = page.locator("#gpt-group");
   assert.equal(await gpt.getAttribute('open'), null);
   await gpt.locator('summary').click();
   assert.equal(await gpt.locator('a').isVisible(), true);
   await gpt.locator('summary').click();
+  const search = page.locator("#search");
+  await search.fill("Synthetic GPT");
+  assert.equal(await gpt.locator("a").isVisible(), true);
+  await search.fill("Archived fixture");
+  assert.equal(await page.getByRole("link", {name: "Archived fixture", exact: true}).isVisible(), true);
+  await search.fill("project-only title");
+  assert.equal(await page.getByRole("link", {name: "Project-only title", exact: true}).isVisible(), true);
+  await search.fill("impossible missing title");
+  assert.equal(await page.locator("#no-results").isVisible(), true);
+  await search.fill("");
+  assert.equal(await page.locator(".sidebar-scroll > details[open]").count(), 0);
+  await page.locator("#projects-group > summary").click();
+  await gpt.locator("summary").click();
+  assert.equal(await page.locator(".sidebar-scroll > details[open]").count(), 2);
+  await gpt.locator("summary").click();
   await page.locator("#date-from").fill("2024-01-01");
   assert.equal(await page.getByRole("link", { name: title, exact: true }).isVisible(), false);
   assert.equal(await page.getByRole("link", { name: "Other title", exact: true }).isVisible(), true);
   await page.locator("#date-from").fill("");
+  assert.equal(await page.locator("#projects-group").getAttribute("open"), "");
+  assert.equal(await page.locator("#conversations-group").getAttribute("open"), null);
   await page.locator("#sort").selectOption("oldest");
-  assert.equal(await page.locator(".nav-row").first().getAttribute("data-title"), title);
+  assert.equal(await page.locator("#conversations-group .nav-row").first().getAttribute("data-title"), title);
   await page.locator("#sort").selectOption("title");
-  assert.equal(await page.locator(".nav-row").first().getAttribute("data-title"), "Other title");
+  assert.equal(await page.locator("#conversations-group .nav-row").first().getAttribute("data-title"), "Other title");
   await page.getByRole("textbox", { name: "Search conversation titles" }).fill("Q&A");
   assert.equal(await page.getByRole("link", { name: "Other title", exact: true }).isVisible(), false);
   const selected = page.getByRole("link", { name: title, exact: true });
@@ -119,6 +140,8 @@ c &= d
   await page.reload();
   await page.frameLocator("#frame").getByText("Assistant readable", { exact: true }).waitFor();
   await page.getByRole("textbox", { name: "Search conversation titles" }).fill("");
+  assert.equal(await page.locator("#conversations-group").getAttribute("open"), "");
+  await page.locator("#projects-group > summary").click();
   await page.getByRole("button", { name: /Project Q&A/ }).click();
   await page.getByRole("link", { name: /Project info/ }).click();
   await page.frameLocator("#frame").getByText("Instructions readable", { exact: true }).waitFor();
@@ -126,6 +149,11 @@ c &= d
     await page.getByRole("link", { name, exact: true }).click();
     await page.frameLocator("#frame").getByRole("heading", { name, exact: true }).waitFor();
   }
+  await page.locator("#search").fill("Synthetic GPT");
+  await page.evaluate(() => { location.hash = encodeURIComponent("archived/html/archived.html"); });
+  await page.frameLocator("#frame").getByRole("heading", {name: "Archived fixture", exact: true}).waitFor();
+  assert.equal(await page.locator("#search").inputValue(), "");
+  assert.equal(await page.getByRole("link", {name: "Archived fixture", exact: true}).isVisible(), true);
   assert.deepEqual(requests.filter((url) => !url.startsWith("file:") && url !== "about:blank"), []);
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ result: "passed", engine, channel: channel || "bundled", browser: await browser.version(), platform: process.platform, networkIsolation: engine === "webkit" ? "HTTP(S) blocked; WebKit offline emulation also rejects file pages" : "offline emulation and HTTP(S) blocked", checks: ["file URL with special characters", "offline assistant/tool content", "inert attack markers", "no automatic network requests", "local raster image", "title search", "creation-date filter and date/title sorting", "hash reload", "project info", "archived/deleted navigation"] }, null, 2));
