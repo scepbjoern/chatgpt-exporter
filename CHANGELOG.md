@@ -1,5 +1,11 @@
 # Changes
 
+## 3.4.0-review.3 through review.5 — 2026-11-05
+
+- Show fixed, evidence-based causes for missing files and retain the originating chat or project. Distinguish a refusal from the metadata service from a refused binary link, which may have another working download route.
+- Publish project resource files with their ID/name mappings in a recoverable generation. Retain older copies and links for resources not yet checked when a run stops.
+- Preserve paired inline and multiline TeX as literal source in offline HTML. Group archive navigation into GPT metadata, projects and conversations. Filters and direct links reveal the relevant entries.
+
 ## 3.4.0-review.2 — 2026-11-04
 
 - Keep 429 backoff pressure across successful requests within a run; escalate fallback pauses from 1 to 15 minutes and still honor longer Retry-After.

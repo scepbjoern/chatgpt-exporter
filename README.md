@@ -2,7 +2,7 @@
 
 A source-only fork for saving the ChatGPT conversation data the service actually returns as raw JSON, Markdown and a self-contained offline HTML folder. Start the exporter locally, complete a run, stop it, then open the archive's `index.html` by double-clicking. The viewer has navigation and **title search**, not full-text search.
 
-**Review status:** the targeted Opus 5.5 AI review found additional defects; the [repair response](docs/reviews/opus-repair-followup.md) records N1–N9 and their regression tests. The follow-up fixes are awaiting targeted review. [TESTING.md](TESTING.md) records actual synthetic checks. Small manual export tests have been reported successful. A complete Business workspace backup, professional security audit or production release is not claimed; full-account rate-limit testing remains separate. Do not use upstream executables/npm packages as builds of this fork.
+**Pilot status:** A targeted AI-assisted review of `4e77c8f` checked offline navigation, formulas, file diagnostics and interrupted project exports. The follow-up change preserves resource links across interruptions and tries another metadata route when a download host refuses a file URL. A personal-account test reached the end of the discovered conversation list across resumed runs, with individual files still unavailable. Managed-device installation and live Business workspace coverage remain open pilot checks. See the [test record](TESTING.md). Use the source package for this fork and install Node.js 24 separately.
 
 ## About this fork
 
@@ -23,8 +23,8 @@ Our fixed starting point is **moisescastellano commit [`78efcdc3`](https://githu
 | Automatic rate-limit recovery | Replace stopping at the first 429 with bounded automatic retries, Retry-After support, adaptive request spacing, run-wide escalating pauses, gradual recovery, countdown and safe cancellation. |
 | Preview and export interface | Metadata-only selection preview, session reuse, required-field validation, six-step workflow, detailed inventory progress and separate saved-content, missing-file and error panels. |
 | Offline HTML and source rendering | Locally vendored renderer, inert untrusted HTML, restricted URLs and no automatic external assets; static presentation widgets and saved citations, read-only forms, separate branch continuations and original-chat links. |
-| Finding archived content | Dated chat filenames with up to 32 title characters, stable identities, an always-generated Markdown index and independent HTML index with title search, date filtering/sorting and collapsible GPT metadata. |
-| Projects, files and reports | Preserve resource filename extensions; enrich project summaries with referenced/local counts and links; list missing files with their known chat/project context; record run settings and distinguish saved progress from current-run checks. |
+| Finding archived content | Dated chat filenames with up to 32 title characters, stable identities, an always-generated Markdown index and independent HTML index with title search, date filtering/sorting and three collapsible groups for GPT metadata, projects and conversations. Filters reveal matches inside closed groups. |
+| Projects, files and reports | Preserve resource filename extensions; enrich project summaries with referenced/local counts and links; list missing files with their known chat/project context; distinguish a missing address, a service refusal, a refusal at the download host and an unknown cause. Publish project resources with their ID-to-file map so interrupted exports preserve local links. |
 | Archive layout and account binding | Separate readable `archive/` (including raw JSON) from `_work/`; retain legacy layouts; explicit declared user/workspace binding; validated inventory pagination; no automatic deletion inference from absence. |
 | Local and network boundaries | Per-launch local API authorization, Host/Origin checks, token lifecycle, validated download destinations/redirects, bounded streaming, DNS/header/body deadlines and sequential downloads. |
 | Validation and documentation | Reworked behavior tests, interruption/recovery scenarios, native ZIP/path checks, offline/browser checks and Windows/macOS CI; documented findings, repairs and remaining limitations. |
@@ -112,8 +112,8 @@ versions not present in the reading copy. Legacy archives are not automatically
 reorganized. No automatic cleanup or portable bundled Node runtime is included.
 
 
-### Readable archive updates (3.4.0-review.1)
+### Reading the current archive
 
-Known presentation widgets are converted to static content in Markdown and HTML; archived form choices are read-only. Citation links use saved metadata, with unavailable details explicitly marked. HTML groups tree alternatives into separate expandable continuations, links back to the original chat and collapses GPT metadata. Literal code and raw JSON are retained. The offline archive cannot reproduce every ChatGPT-specific interactive component.
+Known presentation widgets are converted to static content in Markdown and HTML; archived form choices are read-only. Citation links use saved metadata, with unavailable details explicitly marked. HTML groups tree alternatives into separate expandable continuations and links back to the original chat. The index starts with GPTs (metadata), Projects and Conversations collapsed. Archived and deleted entries are under Conversations. Search and date filters open matching groups; clearing filters restores the previous view. Paired TeX expressions appear as readable source with their delimiters and line breaks. Literal code and raw JSON are retained. The offline archive cannot reproduce every ChatGPT-specific interactive component.
 
 Preview counts appear in a blue panel before Start Export. Inventory reading reports its phase and page counts. A refreshed token for the same account does not invalidate the selection. Saved content, missing files and other errors have separate result panels. Changing totals remain diagnostic-only when the final advertised total matches the discovered count; this is not an independent completeness guarantee.

@@ -1,5 +1,13 @@
 # Test record
 
+## 3.4.0-review.4 and review.5 — 2026-11-05
+
+The targeted Opus AI-assisted review of the `4e77c8f` ZIP confirmed all 28 core test files and checked the rendered offline archive and regeneration on Windows. It identified two issues: a refused binary URL could suppress fallback, and interruption could discard the stored ID/name mappings for project resources. The earlier [repair response](docs/reviews/opus-repair-followup.md) addresses a separate review. [Windows/macOS CI for the reviewed commit](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41998954580).
+
+On follow-up commit `3f2c8e6`, all 28 core test files passed locally on Windows / Node.js 24.11.0, including seven focused pilot cases. Tests exercise HTTP 401/403 at the binary host followed by success or explicit metadata refusal, and a two-file project interrupted by 429 followed by 500. A separate synthetic child-process exit during download left the previous map, bytes and project links intact; a later failed refresh correctly reported the retained copy. The offline archive and UI passed in Chromium and Firefox. The native Windows ZIP/deep path test also passed locally. Both Windows and macOS CI passed on this code commit, including the macOS WebKit checks. [CI run for the corrective commit](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41999357027).
+
+A managed standard-user installation, actual installed Safari, live Business workspace routing and the frequency of refused download links remain separate manual questions. This is a targeted review and synthetic test record.
+
 ## 3.4.0-review.2 — 2026-11-04
 
 Three additional fake-clock cases cover 429 escalation across successful requests, partial recovery after both time/count thresholds, no recovery from many quick successes, a new-run reset and a longer server minimum. The existing retry, interruption and archive suite remains required. Current CI and package results are recorded separately after execution; no completed real-account rate-limit test is claimed.
