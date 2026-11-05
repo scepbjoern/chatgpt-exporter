@@ -31,3 +31,17 @@ Unknown/new content schemas, expired attachments, historical sandbox versions, s
 - **File present but not linked:** check the exact file-map entry and integrity. Similar names are not guessed.
 
 For security details and residual tests, follow [SECURITY.md](SECURITY.md), [TESTING.md](TESTING.md) and the [repair matrix](docs/reviews/repair-matrix.md).
+
+## Checking individual files and formulas
+
+A conversation or project can be saved while an individual file fails. Check the file
+entry in the result or in `archive/missing-files.md` for its name, source and observed
+reason. A refusal applies to that request. A missing download address leaves the
+cause open. A server error can be temporary. A repeated run in the same output
+folder checks project metadata again and attempts missing resources. It keeps
+an existing local copy when a replacement download fails.
+
+A project display icon can be part of the raw metadata. The exporter downloads
+files listed in the project resource inventory. The offline conversation view
+shows common inline and multiline TeX formulas as readable source with their
+delimiters and line breaks. The original message remains in the conversation JSON.

@@ -860,7 +860,7 @@
     files.className = 'result ' + (d.failedFiles ? 'warning' : 'success') + (d.totalFiles ? '' : ' hidden');
     files.style.whiteSpace = 'pre-wrap';
     files.textContent = `Files: ${(d.totalFiles || 0) - (d.failedFiles || 0)} of ${d.totalFiles || 0} references available; ${d.failedFiles || 0} could not be downloaded.`;
-    if (d.failedFiles) files.textContent += '\nIndividual unavailable files may no longer exist or be accessible on ChatGPT. If a file is also unavailable there, repeating the export cannot restore it. See missing-files.md.\n' + (d.missingFiles || []).map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''}`).join('\n');
+    if (d.failedFiles) files.textContent += '\nEach entry shows the observed result. A missing address alone does not identify the cause. See missing-files.md.\n' + (d.missingFiles || []).map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''} — ${f.error || 'Cause unknown.'}`).join('\n');
     const otherIssues = issues.filter(e => !['media', 'project-resource'].includes(e.category));
     const stopped = d.cancelled || d.rateLimited || remaining > 0;
     const serious = d.failed > 0 || d.status === 'failed' || otherIssues.some(e => !['inventory-consistency','inventory-absence','keep-awake'].includes(e.category));

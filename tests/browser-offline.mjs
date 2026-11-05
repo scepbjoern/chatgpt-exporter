@@ -20,6 +20,11 @@ try {
   }
   const title = "Überblick Q&A — 100% #1";
   const attack = '<img src="https://example.invalid/automatic" onerror="window.ATTACK=true"><svg onload="window.ATTACK=true"></svg>';
+  const mathInline = String.raw`\(x_{1}=\frac{1}{2}\)`;
+  const mathBlock = String.raw`\[
+a &< b \\
+c &= d
+\]`;
   const convo = {
     title, conversation_id: "synthetic-browser", create_time: 1700000000,
     mapping: {
@@ -28,6 +33,7 @@ try {
       tool: { parent: "assistant", children: [], message: { author: { role: "tool" }, content: { content_type: "execution_output", parts: ["Tool readable\n" + attack] } } },
     },
   };
+  convo.mapping.assistant.message.content.parts.push("\n\n" + mathInline + "\n\n" + mathBlock);
   const pngChunk = (type, data) => {
     const length = Buffer.alloc(4);
     length.writeUInt32BE(data.length);
@@ -86,6 +92,8 @@ try {
   await selected.click();
   let frame = page.frameLocator("#frame");
   await frame.getByText("Assistant readable", { exact: true }).waitFor();
+  assert.equal(await frame.locator("code.math-source").textContent(), mathInline);
+  assert.equal(await frame.locator("pre.math-source code").textContent(), mathBlock);
   assert.equal(await frame.locator('nav.sidebar').count(), 0);
   assert.equal(await frame.getByRole('link', { name: 'Open original in ChatGPT' }).getAttribute('href'), 'https://chatgpt.com/c/synthetic-browser');
   await frame.getByText('Readable widget', { exact: true }).waitFor();
