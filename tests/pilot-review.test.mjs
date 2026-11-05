@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createApiClient } from "../lib/chatgpt-api.js";
+import { createApiClient, RateLimitStopError } from "../lib/chatgpt-api.js";
 import { downloadFile, downloadSandboxFile } from "../lib/export-files.js";
 import { collectLocalConversations } from "../lib/conversation-storage.js";
 import { markdownToSafeHtml, escapeHtml } from "../lib/safe-markdown.js";
@@ -130,5 +130,51 @@ c &= d
     assert.ok(!markdownToSafeHtml("Costs $5 and $10.").includes("math-source"));
     assert.ok(!markdownToSafeHtml("`\\(x\\)`").includes("math-source"));
     assert.ok(!markdownToSafeHtml("$<img src=x>$").includes("<img"));
+  } finally { f.cleanup(); }
+});
+
+test("binary refusal retries another address; metadata denial remains terminal", async () => {
+  const address = { download_url: "https://synthetic.invalid/asset" };
+  for (const status of [401, 403]) {
+    const available = transport(i => [[200,address],[status,secretBody],[200,address],[200,"bytes"]][i-1]);
+    const file = await downloadFile("file-a","FAKE","data.txt",null,null,"chat",null,available.client);
+    assert.equal(file.buffer.toString(), '"bytes"');
+    assert.equal(available.calls.length,4);
+    const rejected = transport(i => i % 2 ? [200,address] : [status,secretBody]);
+    await assert.rejects(downloadFile("file-a","FAKE","data.txt",null,null,"chat",null,rejected.client), {reason:"download-link"});
+    const denied = transport(i => [[200,address],[status,secretBody],[403,secretBody]][i-1]);
+    await assert.rejects(downloadFile("file-a","FAKE","data.txt",null,null,"chat",null,denied.client), {reason:"access-denied"});
+    assert.equal(denied.calls.length,3);
+  }
+});
+
+test("project maps and links survive a rate limit and a subsequent failed download", async () => {
+  const f=fixture(); try {
+    const project = {gizmoId:"g-p-pilot", name:"Project", gizmo:{name:"Project"},
+      conversations:[], files:[{id:"file-A",name:"A.png"},{id:"file-B",name:"B.png"}]};
+    const run = downloadFile => {
+      f.state.projects=[structuredClone(project)];
+      return f.run({conversations:false,organizeFolders:true},{downloadFile});
+    };
+    const first=await run(async (_id,_token,filename,_debug,_project,_chat,destination) => {
+      writeFileSync(destination,filename); return {filename};
+    });
+    assert.equal(first.projects,1);
+    const projectFiles=allFiles(join(f.root,"archive","projects"));
+    const raw=projectFiles.find(p=>p.endsWith("project-raw.json"));
+    const expected=JSON.parse(readFileSync(raw)).resources.map(r=>r.localName);
+    const interrupted=await run(async()=>{throw new RateLimitStopError("60");});
+    assert.equal(interrupted.rateLimited,true);
+    const saved=JSON.parse(readFileSync(raw)).resources;
+    assert.deepEqual(saved.map(r=>r.localName),expected);
+    assert.ok(saved.every(r=>r.retained && r.checked===false));
+    const retry=await run(async()=>{throw Object.assign(new Error(privateMarker),{httpStatus:500});});
+    assert.equal(retry.failedFiles,2);
+    assert.ok(retry.missingFiles.every(m=>m.retained));
+    const html=readFileSync(projectFiles.find(p=>p.endsWith("project-info.html")),"utf8");
+    for(const name of expected) {
+      assert.ok(html.includes('href="resources/'+name+'"'));
+      assert.equal(readFileSync(projectFiles.find(p=>p.endsWith(name)),"utf8"),name[0]+".png");
+    }
   } finally { f.cleanup(); }
 });

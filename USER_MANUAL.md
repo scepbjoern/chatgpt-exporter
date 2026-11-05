@@ -45,3 +45,4 @@ A project display icon can be part of the raw metadata. The exporter downloads
 files listed in the project resource inventory. The offline conversation view
 shows common inline and multiline TeX formulas as readable source with their
 delimiters and line breaks. The original message remains in the conversation JSON.
+Outside a matched TeX expression, the HTML viewer applies ordinary Markdown escaping. For example, a backslash before a literal brace may only be visible in the source Markdown and JSON.
