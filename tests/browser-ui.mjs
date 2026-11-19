@@ -13,7 +13,13 @@ const { server, key } = createExporterServer({
   },
   runExport: async (token, output, concurrency, zip, keepAwake, options, send) => {
     receivedToken = token;
-    if (++exports > 1) {
+    exports++;
+    if (exports > 2) {
+      send("done", JSON.stringify({ total: 0, succeeded: 0, failed: 0, totalFiles: 0, failedFiles: 0, missingFiles: [],
+        recoveryFiles: [{ filename: "Earlier.pdf" }], errors: [], status: "complete-within-requested-scope", output }));
+      return;
+    }
+    if (exports > 1) {
       send("done", JSON.stringify({ total: 9, processed: 9, succeeded: 9, failed: 0, projects: 3, gpts: 19, totalFiles: 14, failedFiles: 1, missingFiles: [{ filename: 'Missing.pdf', projectName: 'Synthetic project', error: 'File not found when requested.' }], errors: [{ category: 'project-resource', message: 'HTTP 404' }], status: 'partial', output })); return;
     }
     send("done", JSON.stringify({ total: 1, processed: 1, succeeded: 0, updated: 0, skipped: 0, failed: 1, failedTitles: [marker], status: "partial", output }));
@@ -89,6 +95,11 @@ try {
   assert.equal(await page.locator('#issue-result').isVisible(), false);
   assert.match(await page.locator('#result').textContent(), /9 conversations/);
   if (process.env.CGE_SCREENSHOT_DIR) { await page.locator('#file-result').scrollIntoViewIfNeeded(); await page.mouse.move(0,0); await page.evaluate(() => document.activeElement?.blur()); await page.screenshot({path:join(process.env.CGE_SCREENSHOT_DIR,'review1-result.png')}); }
+  await page.locator('#token-input').fill(JSON.stringify({ accessToken: 'SYNTHETIC_FILTERED', user: { id: 'synthetic-user' } }));
+  await page.locator('#export-btn').click();
+  await page.locator('#file-result').filter({ hasText: '1 unresolved file references' }).waitFor();
+  assert.equal(await page.locator('#file-result').isVisible(), true);
+  assert.equal(await page.locator('#file-result').getAttribute('class'), 'result warning');
   assert.equal(await page.evaluate(() => window.ATTACK), undefined);
   assert.deepEqual(requests.filter(url => !url.startsWith(origin + "/")), []);
   assert.deepEqual(errors, []);

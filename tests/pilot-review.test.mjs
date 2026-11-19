@@ -51,7 +51,7 @@ test("project content failures link to the original chat and override later fall
     assert.ok(!html.includes("Access to this file was denied."));
     assert.ok(!html.includes("FAKE-TOKEN"));
     const empty = missingFilesDocuments([]);
-    assert.ok(empty.html.includes("No failed file references"));
+    assert.ok(empty.html.includes("No unresolved file references"));
   } finally { f.cleanup(); }
 });
 
@@ -67,7 +67,7 @@ test("recovery documents ignore legacy direct addresses and reject unsafe source
   }
   assert.equal(fileRecoveryCategory({reason:"not-found"}), "unavailable");
   assert.equal(fileRecoveryCategory({reason:"unknown",attempts:[
-    {step:"request download address",httpStatus:200,outcome:"no download address"},
+    {step:"request download address",httpStatus:200,outcome:"no download address",reason:"missing-address"},
     {step:"request download address",httpStatus:404,outcome:"not-found"},
   ]}), "unavailable");
   assert.equal(fileRecoveryCategory({reason:"unknown",attempts:[{httpStatus:503},{httpStatus:404}]}), "unknown");
@@ -115,7 +115,7 @@ test("conversation-only export downloads a project chat attachment using its pro
     const client = {
       async apiGet(route) {
         routes.push(route);
-        return { download_url: "https://synthetic.invalid/test" };
+        return route.includes("gizmo_id") ? { download_url: "https://synthetic.invalid/test" } : {};
       },
       async apiDownloadTo(url, token, destination) {
         writeFileSync(destination, "# Test attachment");
@@ -123,7 +123,11 @@ test("conversation-only export downloads a project chat attachment using its pro
       },
     };
     const report = await f.run({ projects: false, organizeFolders: true }, { downloadFile: (...args) => downloadFile(...args, client) });
-    assert.deepEqual(routes, ["files/download/file-one?download_intent=true&gizmo_id=g-p-example"]);
+    assert.deepEqual(routes, [
+      "files/download/file-one?conversation_id=sameprefix-one&inline=false",
+      "files/download/file-one", "files/file-one",
+      "files/download/file-one?download_intent=true&gizmo_id=g-p-example",
+    ]);
     assert.equal(report.projects, 0);
     assert.equal(report.failedFiles, 0);
     assert.equal(report.totalFiles, 1);
@@ -138,7 +142,7 @@ test("binary 401 diagnostics classify direct and redirected responses without re
     const client = createApiClient({ apiBase: origin + "/backend-api", testOrigins: [origin, storage], minIntervalMs: 0,
       fetch: async value => {
         const url = new URL(value);
-        if (url.searchParams.has("gizmo_id")) return Response.json({ download_url: origin + "/api/library/files/PRIVATE/project-content?secret=PRIVATE" });
+        if (url.searchParams.has("conversation_id") || url.searchParams.has("gizmo_id")) return Response.json({ download_url: origin + "/api/library/files/PRIVATE/project-content?secret=PRIVATE" });
         if (url.pathname.endsWith("/project-content") && redirected) return Response.redirect(storage + "/PRIVATE?secret=PRIVATE", 302);
         return new Response(null, { status: url.pathname.startsWith("/backend-api/") ? 403 : 401 });
       } });
@@ -160,24 +164,6 @@ test("scope fallback can succeed, conflicting failed routes cannot prove a cause
   assert.equal(file.buffer.toString(), '"ok"');
   const other = transport(i => i === 1 ? [500, {}] : [404, {}]);
   await assert.rejects(downloadFile("file-a", "FAKE", "data.txt", null, null, "chat", null, other.client), {reason:"unknown"});
-});
-
-test("preview diagnostics discard the preview address and report the download decision", async () => {
-  const { client, calls } = transport(i => i === 1
-    ? [200, { download_url: "https://synthetic.invalid/preview-only" }]
-    : [200, { error_message: "Not allowed to download files." }]);
-  await assert.rejects(downloadFile("file-a", "FAKE", "test.md", null, "project", "chat", null, client, true), error => {
-    assert.equal(error.reason, "access-denied");
-    assert.deepEqual(error.attempts.map(a => [a.route, a.httpStatus, a.outcome]), [
-      ["project-chat preview download_intent=false", 200, "address received"],
-      ["project-chat download_intent=true", 200, "no download address"],
-    ]);
-    return true;
-  });
-  assert.deepEqual(calls, ["/api/files/download/file-a", "/api/files/download/file-a"]);
-  const denied = transport(() => [403, {}]);
-  await assert.rejects(downloadFile("file-a", "FAKE", "test.md", null, "project", "chat", null, denied.client, true), { reason: "access-denied" });
-  assert.equal(denied.calls.length, 1);
 });
 
 test("sandbox diagnostics discard raw HTTP bodies and metadata, including binary failures", async () => {

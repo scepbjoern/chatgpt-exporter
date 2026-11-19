@@ -857,12 +857,14 @@
       : `Saved successfully: ${saved} conversations.\n${d.succeeded || 0} new · ${d.updated || 0} updated · ${d.skipped || 0} resumed.\nProjects: ${d.projects || 0} saved · GPT metadata: ${d.gpts || 0} saved.`;
     showResult(saved || d.projects || d.gpts || d.status === 'complete-within-requested-scope' ? 'success' : 'info', success + (d.output ? '\nSaved to: ' + (d.archive || d.output) : '') + '\nKeep the complete output folder for resuming; absence from the inventory is not proof of deletion.');
     const files = document.getElementById('file-result');
-    files.className = 'result ' + (d.failedFiles ? 'warning' : 'success') + (d.totalFiles ? '' : ' hidden');
+    const unresolved = (d.recoveryFiles || []).length;
+    files.className = 'result ' + (d.failedFiles || unresolved ? 'warning' : 'success') + (d.totalFiles || unresolved ? '' : ' hidden');
     files.style.whiteSpace = 'pre-wrap';
     files.textContent = `Files: ${(d.totalFiles || 0) - (d.failedFiles || 0)} of ${d.totalFiles || 0} references available; ${d.failedFiles || 0} could not be downloaded.`;
-    if (d.failedFiles) {
+    if (d.failedFiles || unresolved) {
+      if (unresolved) files.textContent += `\n${unresolved} unresolved file references remain recorded across this archive and the latest run.`;
       const recovery = { browser: 'Download in your signed-in browser', unavailable: 'Possibly no longer available', unknown: 'Cause unresolved or temporary' };
-      files.textContent += '\nOpen missing-files.html in the readable archive for filenames, grouped instructions and original chat or project links.\n' + (d.missingFiles || []).map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''} — ${recovery[f.recoveryCategory] || recovery.unknown}`).join('\n');
+      files.textContent += '\nOpen missing-files.html in the readable archive for filenames, grouped instructions and original chat or project links. The list also includes unresolved references from earlier runs. Save manual downloads in manual-downloads/ beside that list.\n' + (d.missingFiles || []).map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''} — ${recovery[f.recoveryCategory] || recovery.unknown}`).join('\n');
     }
     const otherIssues = issues.filter(e => !['media', 'project-resource'].includes(e.category));
     const stopped = d.cancelled || d.rateLimited || remaining > 0;

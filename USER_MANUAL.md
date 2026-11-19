@@ -41,6 +41,15 @@ cause open. A server error can be temporary. A repeated run in the same output
 folder checks project metadata again and attempts missing resources. It keeps
 an existing local copy when a replacement download fails.
 
+`archive/missing-files.html` and its Markdown counterpart include earlier open
+references, even after a filtered or stopped run. Open the original chat or project,
+find the listed filename and download it through ChatGPT. Save manual copies in
+`archive/manual-downloads/`, beside the report. Create project/chat subfolders
+there as needed. For a legacy flat export, use `manual-downloads/` beside the
+report at the output root. Include this folder in your backup. The exporter
+replaces its managed attachment and view folders during later exports. Manual
+copies remain separate from its file map and do not automatically clear the list.
+
 A project display icon can be part of the raw metadata. The exporter downloads
 files listed in the project resource inventory. The offline conversation view
 shows common inline and multiline TeX formulas as readable source with their

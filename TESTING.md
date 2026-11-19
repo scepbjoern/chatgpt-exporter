@@ -1,5 +1,13 @@
 # Test record
 
+## Recovery report corrections A1–A6 — local development, 2026-11-19
+
+The follow-up to the Claude review of 164dbb2 reconstructs unresolved references from published conversation maps and project records, supplements failed unpublished attempts from the latest run, states selection/stop scope, and clears recovered entries after publication. Diagnostics and project context are retained in file maps. The separate manual-downloads folder remains in the readable archive across retries. Legacy conversation, generic and metadata routes precede the additional project-chat scope. Explicit metadata denial remains terminal.
+
+The temporary --diagnose-project-attachments mode has been removed after the investigation. It no longer adds a preview request or changes the export result. Each address-less attempt records a fixed reason, so a 200 response containing a denial, server error or unknown error cannot become evidence of unavailability. Markdown uses literal code spans for foreign names/titles and matches the HTML scope/intro. The Markdown index uses the neutral "Files to check" label.
+
+Windows / Node.js 24.11.0: all 29 core test files passed, including six focused recovery-report regression cases. Installed Chrome 157.0.8103.51 passed the offline and loopback UI checks. The implementing agent ran synthetic tests only for these corrections. macOS and CI remain open for this follow-up.
+
 ## File recovery reports — local development, 2026-11-19
 
 Windows / Node.js 24.11.0: all 28 core test files passed. The offline archive and loopback UI checks passed with installed Chrome 157.0.8103.51 through Playwright's chrome channel. These are implementing-agent checks with synthetic fixtures. macOS and CI have not been run for this change.
