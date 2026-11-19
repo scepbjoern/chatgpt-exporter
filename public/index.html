@@ -867,6 +867,9 @@
       files.textContent += '\nOpen missing-files.html in the readable archive for filenames, grouped instructions and original chat or project links. The list also includes unresolved references from earlier runs. Save manual downloads in manual-downloads/ beside that list.\n' + (d.missingFiles || []).map(f => `${f.filename} — ${f.conversationTitle || f.projectName || f.id}${f.retained ? ' (local copy retained)' : ''} — ${recovery[f.recoveryCategory] || recovery.unknown}`).join('\n');
     }
     const otherIssues = issues.filter(e => !['media', 'project-resource'].includes(e.category));
+    if ([...(d.recoveryFiles || []), ...(d.missingFiles || [])].some(f => f.backupMayContainFiles === true)) {
+      files.textContent += '\nEarlier unassigned files may remain in publication backups. See the per-file notes in missing-files.html before downloading again; keep the complete output folder.';
+    }
     const stopped = d.cancelled || d.rateLimited || remaining > 0;
     const serious = d.failed > 0 || d.status === 'failed' || otherIssues.some(e => !['inventory-consistency','inventory-absence','keep-awake'].includes(e.category));
     const issueBox = document.getElementById('issue-result');

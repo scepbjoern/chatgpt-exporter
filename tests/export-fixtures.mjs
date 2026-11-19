@@ -18,7 +18,7 @@ export function fixture({ shortRoot = false } = {}) {
   const state = { conversations: [conversation()], archived: [], projects: [], fileError: null, calls: [], inventoryOverride: null, gpts: [] };
   const deps = {
     resetRateLimiter() {}, setApiWorkspace() {}, getRateLimitState() { return { stopped: false }; },
-    fetchProjectsInventory: async () => state.projects,
+    fetchProjectsInventory: async () => structuredClone(state.projects),
     apiGetPublic: async () => ({ items: state.gpts }),
     apiGet: async (path) => {
       state.calls.push(path);

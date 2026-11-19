@@ -1,5 +1,15 @@
 # Test record
 
+## Follow-up corrections G1–G3 — 2026-11-19
+
+Resume and recovery collection now share the collection-shape check in `lib/file-map.js`. Invalid maps produce incomplete coverage even outside the current selection. The export-time HTML refresh skips those maps, preserving the existing page byte-for-byte until an actual selected export repairs the map. Regression variants include null, arrays, scalars, missing or wrongly typed `files`, wrongly typed `failed` and invalid JSON. Missing maps retain the previous behavior; local view regeneration remains a separate explicit operation.
+
+Failed attachment downloads after a map rebuild carry a persistent `backupMayContainFiles` hint in the map and report. Both recovery documents and the UI explain that earlier unassigned bytes may be in publication backups, without claiming a verified copy of that particular file. Tests cover legacy and organized layouts, actual retained backup bytes, repeated failures, filtering and removal of the hint after successful recovery.
+
+The synthetic project inventory returns a structured clone for each request. Persistence tests now assert that the original fixture inventory is not modified and reuse it in a separate clean archive, avoiding false results from mutated in-memory objects. Platform results for the corrective commit are recorded in GitHub Actions and the targeted review request.
+
+Windows / Node.js 24.11.0: all 29 core files passed (14 recovery-report cases), along with installed Chrome offline/UI and the Chromium native ZIP/deep-path check. The preceding ffb14b6 macOS job was cancelled with zero executed steps; GitHub annotated ARM runner capacity constraints. Manual workflow dispatch can now select `macos-26-intel` as an alternative; automatic runs still use `macos-latest`. Record Intel and ARM results separately. A hosted WebKit check is not an installed-Safari or managed-device pilot test.
+
 ## Follow-up corrections F1–F4 — 2026-11-19
 
 The remaining Markdown path encoders in the archive index and project summaries now encode parentheses. The regression resolves parsed Markdown links for conversations, projects, resources and GPT metadata against actual files, and checks the project resource's generated HTML link. The inherited HTML restriction on project-summary conversation links (O2) is separate and unchanged.

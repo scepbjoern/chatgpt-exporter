@@ -55,6 +55,8 @@ An old unbound export is deliberately not adopted as the same account automatica
 
 ## What the archive contains
 
+If a conversation map had to be rebuilt and an attachment could not be downloaded, the recovery list may show a **publication backups** note. Earlier unassigned files may still be under `_work/superseded/` (`superseded/` in legacy exports). Inspect these backups before downloading again, keep the complete output folder, and do not move or delete backup files. The note does not verify that a copy of the named attachment exists or assign unknown bytes to it. It remains across retries until that reference is recovered.
+
 - Raw JSON for successfully obtained conversations, always retained as the comparison source. JSON is serialized service data, not a byte-identical HTTP response and not proof of service completeness.
 - Markdown with the existing branch, source-link, metadata, label and activity options. HTML is a separate tree view; it need not display exactly the same branch selection as Markdown.
 - Pre-rendered HTML with local navigation and title search. Assistant/tool text does not depend on browser JavaScript or a CDN. Raw HTML is displayed inertly. Remote images are not automatically loaded; ordinary external links work only when clicked.

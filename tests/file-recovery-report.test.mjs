@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, basename } from "node:path";
 import { fixture, allFiles, conversation } from "./export-fixtures.mjs";
 import { FileFailure, fileRecoveryCategory } from "../lib/file-failure.js";
 import { downloadFile } from "../lib/export-files.js";
@@ -76,8 +76,7 @@ test("damaged project metadata rebuilds current inventory, preserves bytes and r
       assert.deepEqual(readFileSync(oldResource), bytes, "unmapped old resource stays in readable archive");
       assert.ok(allFiles(join(f.root, "_work", "superseded")).some(path => readFileSync(path, "utf8") === contents), "damaged raw bytes preserved in publication backup");
       assert.equal(JSON.parse(readFileSync(rawPath, "utf8")).resources.length, 1);
-      // Forget in-memory project mutations: the warning must be durable on disk.
-      delete f.state.projects[0].recoveryMetadataIncomplete;
+      assert.equal(f.state.projects[0].recoveryMetadataIncomplete, undefined, "inventory objects must remain fresh across runs");
       const repeat = await f.run({ organizeFolders: true });
       assert.equal(repeat.projects, 1);
       assert.equal(repeat.recoveryCoverageComplete, false);
@@ -89,8 +88,7 @@ test("damaged project metadata rebuilds current inventory, preserves bytes and r
       assert.equal(JSON.parse(readFileSync(rawPath, "utf8")).recoveryMetadataIncomplete, true);
       // Documented alternative: keep this archive and export a separate current snapshot.
       fresh.state.conversations = [];
-      fresh.state.projects = [{ gizmoId: "g-p-project", name: "Project", gizmo: { display: { name: "Project" } },
-        files: [{ id: "file-a", name: "A.pdf" }], conversations: [] }];
+      fresh.state.projects = f.state.projects;
       const snapshot = await fresh.run({ organizeFolders: true });
       assert.equal(snapshot.status, "complete-within-requested-scope");
       assert.equal(snapshot.recoveryCoverageComplete, true);
@@ -100,14 +98,22 @@ test("damaged project metadata rebuilds current inventory, preserves bytes and r
 });
 
 test("non-object conversation maps rebuild and preserve the previous attachment folder", async () => {
-  for (const contents of ["null", "[]", '"broken"', "7", "false", '{"files":null}', '{"files":{},"failed":[]}']) {
+  for (const contents of ["null", "[]", '"broken"', "7", "false", '{"files":null}', '{"files":{},"failed":[]}', '{"files":[]}', '{"files":"x"}', '{"files":{},"failed":null}', '{"version":3}', 'PRIVATE_PARSE_MARKER']) {
     const f = fixture();
     try {
       await f.run({ organizeFolders: true });
       const path = allFiles(join(f.root, "archive")).find(p => p.endsWith(".file-map.json"));
+      const htmlPath = join(dirname(dirname(dirname(path))), "html", basename(dirname(path)) + ".html");
+      const beforeHtml = readFileSync(htmlPath, "utf8");
+      assert.match(beforeHtml, /href="\.\.\/files\//);
       writeFileSync(path, contents);
       const filtered = await f.run({ organizeFolders: true, dateFrom: "2030-01-01" });
       assert.equal(filtered.errors.some(e => e.category === "html"), false);
+      assert.equal(filtered.status, "partial");
+      assert.equal(filtered.recoveryCoverageComplete, false);
+      assert.ok(filtered.errors.some(e => e.category === "recovery-metadata"));
+      assert.equal(readFileSync(htmlPath, "utf8"), beforeHtml, "invalid maps must not degrade existing HTML");
+      assert.doesNotMatch(JSON.stringify(filtered.errors), /PRIVATE_PARSE_MARKER/);
       const result = await f.run({ organizeFolders: true });
       assert.equal(result.failed, 0);
       assert.equal(result.status, "complete-within-requested-scope");
@@ -115,6 +121,38 @@ test("non-object conversation maps rebuild and preserve the previous attachment 
       assert.ok(allFiles(join(f.root, "_work", "superseded")).some(p => p.endsWith(".file-map.json") && readFileSync(p, "utf8") === contents));
       const repeated = await f.run({ organizeFolders: true }, { downloadFile: async () => { throw new Error("unchanged repaired map must resume locally"); } });
       assert.equal(repeated.status, "complete-within-requested-scope");
+    } finally { f.cleanup(); }
+  }
+});
+
+test("map repair failures keep a backup hint across retries and filtering until recovery", async () => {
+  for (const organized of [false, true]) {
+    const f = fixture();
+    try {
+      await f.run({ organizeFolders: organized });
+      const archive = organized ? join(f.root, "archive") : f.root;
+      const mapPath = allFiles(archive).find(p => p.endsWith(".file-map.json"));
+      writeFileSync(mapPath, "null");
+      f.state.fileError = new FileFailure("access-denied");
+      const repair = await f.run({ organizeFolders: organized });
+      assert.equal(repair.status, "partial");
+      assert.equal(repair.missingFiles[0].backupMayContainFiles, true);
+      assert.equal(repair.missingFiles[0].retained, false);
+      const backups = allFiles(join(f.root, ...(organized ? ["_work"] : []), "superseded"));
+      assert.ok(backups.some(p => readFileSync(p, "utf8") === "synthetic original bytes"));
+      for (const options of [{}, { dateFrom: "2030-01-01" }]) {
+        const result = await f.run({ organizeFolders: organized, ...options });
+        assert.equal(result.recoveryFiles[0].backupMayContainFiles, true);
+        for (const name of ["missing-files.md", "missing-files.html"]) {
+          const text = readFileSync(join(archive, name), "utf8");
+          assert.match(text, /publication backups/);
+          assert.match(text, /specific file has not been verified/);
+        }
+      }
+      f.state.fileError = null;
+      const recovered = await f.run({ organizeFolders: organized });
+      assert.equal(recovered.recoveryFiles.length, 0);
+      assert.doesNotMatch(readFileSync(join(archive, "missing-files.html"), "utf8"), /publication backups/);
     } finally { f.cleanup(); }
   }
 });

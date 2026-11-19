@@ -66,6 +66,13 @@ Outside a matched TeX expression, the HTML viewer applies ordinary Markdown esca
 
 ## Damaged local metadata
 
+If a map repair cannot download an attachment, its entry in `missing-files.html`
+and `missing-files.md` may point you to publication backups. Earlier unassigned
+files may remain in `_work/superseded/` (`superseded/` for legacy exports). Keep
+the complete output folder and inspect these backups before downloading again.
+The note does not confirm a copy of this specific attachment. Copy any recovered
+file to `manual-downloads/`; leave the backup files and their journals in place.
+
 A **Local metadata** warning names a file relative to the readable archive
 (`archive/` for organized exports). The same path is in `errors[].id` for the
 `recovery-metadata` entry in the saved export report. The recovery list may be

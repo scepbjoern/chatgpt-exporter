@@ -5,6 +5,14 @@ on:
   pull_request:
     paths-ignore: ["**.md"]
   workflow_dispatch:
+    inputs:
+      macos_runner:
+        description: macOS runner (Intel fallback when ARM capacity is unavailable)
+        type: choice
+        default: macos-latest
+        options:
+          - macos-latest
+          - macos-26-intel
 permissions:
   contents: read
 jobs:
@@ -12,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, "${{ inputs.macos_runner || 'macos-latest' }}"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:

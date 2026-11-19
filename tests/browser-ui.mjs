@@ -21,7 +21,7 @@ const { server, key } = createExporterServer({
     }
     if (exports > 2) {
       send("done", JSON.stringify({ total: 0, succeeded: 0, failed: 0, totalFiles: 0, failedFiles: 0, missingFiles: [],
-        recoveryFiles: [{ filename: "Earlier.pdf" }], errors: [], status: "complete-within-requested-scope", output }));
+        recoveryFiles: [{ filename: "Earlier.pdf", backupMayContainFiles: true }], errors: [], status: "complete-within-requested-scope", output }));
       return;
     }
     if (exports > 1) {
@@ -103,6 +103,7 @@ try {
   await page.locator('#token-input').fill(JSON.stringify({ accessToken: 'SYNTHETIC_FILTERED', user: { id: 'synthetic-user' } }));
   await page.locator('#export-btn').click();
   await page.locator('#file-result').filter({ hasText: '1 unresolved file references' }).waitFor();
+  assert.match(await page.locator('#file-result').textContent(), /publication backups/);
   assert.equal(await page.locator('#file-result').isVisible(), true);
   assert.equal(await page.locator('#file-result').getAttribute('class'), 'result warning');
   await page.locator('#token-input').fill(JSON.stringify({ accessToken: 'SYNTHETIC_METADATA', user: { id: 'synthetic-user' } }));
