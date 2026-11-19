@@ -116,7 +116,7 @@ test("handles generated filenames containing parentheses", () => {
   assert.equal(extractSandboxReferences(convo)[0].sandboxPath, path);
   assert.equal(
     rewriteSandboxLinks(`[Download](${path})`, { [path]: "../files/Test/report(1).zip" }),
-    "[Download](../files/Test/report(1).zip)"
+    "[Download](../files/Test/report%281%29.zip)"
   );
 });
 

@@ -29,7 +29,7 @@ c &= d
     title, conversation_id: "synthetic-browser", create_time: 1700000000,
     mapping: {
       user: { parent: null, children: ["assistant"], message: { author: { role: "user" }, content: { content_type: "text", parts: ["Synthetic user"] } } },
-      assistant: { parent: "user", children: ["tool"], message: { author: { role: "assistant" }, content: { content_type: "text", parts: [`**Assistant readable**\n\n${attack}\n\n[x](javascript:alert%281%29)\n\n![remote](https://example.invalid/image.png)\n\n![Local](../files/Über%20%23%25.png)\n\n[Explicit external](https://example.invalid/click)`] } } },
+      assistant: { parent: "user", children: ["tool"], message: { author: { role: "assistant" }, content: { content_type: "text", parts: [`**Assistant readable**\n\n${attack}\n\n[x](javascript:alert%281%29)\n\n![remote](https://example.invalid/image.png)\n\n![Local](../files/Über%20%23%25%29.png)\n\n[Explicit external](https://example.invalid/click)`] } } },
       tool: { parent: "assistant", children: [], message: { author: { role: "tool" }, content: { content_type: "execution_output", parts: ["Tool readable\n" + attack] } } },
     },
   };
@@ -43,11 +43,11 @@ c &= d
     return Buffer.concat([length, body, crc]);
   };
   const ihdr = Buffer.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]);
-  writeFileSync(join(archive, "files/Über #%.png"), Buffer.concat([
+  writeFileSync(join(archive, "files/Über #%).png"), Buffer.concat([
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk("IHDR", ihdr),
     pngChunk("IDAT", deflateSync(Buffer.from([0, 255, 0, 0, 255]))), pngChunk("IEND", Buffer.alloc(0)),
   ]));
-  writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%.png" }));
+  writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%).png" }));
   writeFileSync(join(archive, "html/second.html"), conversationToHtml({ ...convo, title: "Other title" }));
   writeFileSync(join(archive, "json/chat #%.json"), JSON.stringify(convo));
   writeFileSync(join(archive, "json/second.json"), JSON.stringify({ ...convo, conversation_id: "second", title: "Other title", create_time: 1735689600 }));
@@ -56,7 +56,7 @@ c &= d
   writeFileSync(join(archive, "projects/Project_stable/project-info.md"), "# Project\n\n**Instructions readable**\n\n" + attack);
   convo.mapping.tool.children = ["variant1", "variant2"];
   for (const [id, text] of [["variant1", '<box><text>Readable widget</text><Link url="https://example.invalid/source" title="Saved source"/></box>'], ["variant2", 'Second branch response']]) convo.mapping[id] = { parent: "tool", children: [], message: { author: { role: "assistant" }, content: { content_type: "text", parts: [text] } } };
-  writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%.png" }));
+  writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%).png" }));
   writeFileSync(join(archive, "gpts", "fixture.md"), "# Synthetic GPT\n\nDescription");
   writeFileSync(join(archive, "projects/Project_stable/html/example.html"), conversationToHtml({ ...convo, title: "Project-only title" }));
   generateExportIndex(archive, [{ name: "Project Q&A", folderName: "Project_stable" }], { report: { missingFiles: [

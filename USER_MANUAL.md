@@ -50,6 +50,14 @@ report at the output root. Include this folder in your backup. The exporter
 replaces its managed attachment and view folders during later exports. Manual
 copies remain separate from its file map and do not automatically clear the list.
 
+Integrity checks compare files with the last recorded manifest. Changing a manual
+file already included there causes a mismatch until the manifest is refreshed.
+After intentional manual additions, edits or moves, run **Regenerate local views**
+once, then run the archive verifier again on the complete output folder. The local
+regeneration keeps manual file bytes and records the new hashes. A successful
+hash check still needs to be considered together with the export's missing-file
+report.
+
 A project display icon can be part of the raw metadata. The exporter downloads
 files listed in the project resource inventory. The offline conversation view
 shows common inline and multiline TeX formulas as readable source with their

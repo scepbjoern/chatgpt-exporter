@@ -1,5 +1,15 @@
 # Test record
 
+## Follow-up corrections N1–N3 and O1 — local development, 2026-11-19
+
+Recovery collection now catches malformed individual conversation maps and project metadata, records fixed recovery-metadata issues and marks coverage incomplete while generating the remaining index and list. Tests include invalid JSON, invalid collection shapes and malformed diagnostics. Project resources with a verified local file and no recorded failure are excluded from the backlog when unchecked or absent from the latest inventory. Actual failures and missing local copies remain visible.
+
+New conversation maps no longer add project-context fields solely for the recovery list. Context comes from the raw conversation, known project inventory and stored project metadata. Intermediate maps retain any existing context fields verbatim, avoiding a second metadata-only migration. Synthetic upgrade tests keep the maps byte-identical and add zero attachment backups, including a project rename within the same folder prefix. A separate comparison using the actual 18d6b36 runner to create the archive also passed with zero additional attachment backups.
+
+All three local path encoders now encode parentheses for Markdown targets. Tests cover image, attachment and sandbox links with unmatched opening/closing parentheses and reserved characters. The installed Chrome offline check loaded an actual PNG with an unmatched closing parenthesis in its filename. Integrity documentation explains manual-file mismatches and refreshing the manifest through local regeneration. A regression test verifies hashes before a manual edit, detects the edit, regenerates views and verifies the refreshed manifest without changing manual bytes.
+
+Windows / Node.js 24.11.0: all 29 core test files passed, with ten recovery-report regression cases. Installed Chrome 157.0.8103.51 passed offline and UI checks. These are implementing-agent checks using synthetic data. macOS, current CI and the targeted Claude follow-up remain open.
+
 ## Recovery report corrections A1–A6 — local development, 2026-11-19
 
 The follow-up to the Claude review of 164dbb2 reconstructs unresolved references from published conversation maps and project records, supplements failed unpublished attempts from the latest run, states selection/stop scope, and clears recovered entries after publication. Diagnostics and project context are retained in file maps. The separate manual-downloads folder remains in the readable archive across retries. Legacy conversation, generic and metadata routes precede the additional project-chat scope. Explicit metadata denial remains terminal.

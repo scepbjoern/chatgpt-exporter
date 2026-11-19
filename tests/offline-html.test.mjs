@@ -7,8 +7,38 @@ import { join } from "node:path";
 import { conversationToHtml } from "../lib/html-renderer.js";
 import { generateExportIndex, extractHtmlTitle } from "../lib/export-index.js";
 import { markdownToSafeHtml } from "../lib/safe-markdown.js";
+import { conversationToMarkdown } from "../lib/markdown.js";
+import { rewriteSandboxLinks } from "../lib/sandbox-files.js";
 
 const attacks = `<img src="https://example.invalid/leak" onerror="window.ATTACK=true">\n<svg onload="window.ATTACK=true"></svg>\n[x](javascript:alert%281%29)\n![remote](https://example.invalid/image.png)\n[bad](data:text/html,attack)\n[relative](../../outside.html)\n![svg](../files/active.svg)`;
+
+test("unmatched parentheses in local paths keep image, attachment and sandbox targets intact", () => {
+  for (const title of ["Smile :)", "Open (", "Balanced (ok)", "Smile :) # %"]) {
+    const convo = {
+      conversation_id: "parentheses", title, mapping: {
+        user: { parent: null, children: [], message: { author: { role: "user" },
+          content: { content_type: "text", parts: ["Question", { content_type: "image_asset_pointer", asset_pointer: "file-service://file-image" }] },
+          metadata: { attachments: [{ id: "file-doc", name: "Document.txt" }] } } },
+      },
+    };
+    const files = { "file-image": "../files/" + title + "/picture.png", "file-doc": "../files/" + title + "/Document.txt" };
+    const html = conversationToHtml(convo, files);
+    assert.ok(html.includes("<img "));
+    assert.ok(!html.includes("Image not embedded"));
+    assert.ok(html.includes("%28") || html.includes("%29"));
+    const markdown = conversationToMarkdown(convo, files);
+    const rendered = markdownToSafeHtml(markdown, Object.values(files));
+    assert.ok(rendered.includes("<img "));
+    assert.ok(rendered.includes("Document.txt"));
+    assert.match(rendered, /href="\.\.\/files\/[^"]+\/Document.txt"/);
+    const sandbox = rewriteSandboxLinks("[Result](sandbox:/mnt/data/result.txt)", {
+      "sandbox:/mnt/data/result.txt": files["file-doc"],
+    });
+    const sandboxHtml = markdownToSafeHtml(sandbox, Object.values(files));
+    assert.match(sandboxHtml, /href="\.\.\/files\/[^"]+\/Document.txt"/);
+    assert.ok(!/\]\([^\n]*[()]/.test(sandbox.replace(/\)$/, "")));
+  }
+});
 
 export function syntheticConversation() {
   return {
