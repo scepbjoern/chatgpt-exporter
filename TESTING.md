@@ -1,5 +1,13 @@
 # Test record
 
+## File recovery reports — local development, 2026-11-19
+
+Windows / Node.js 24.11.0: all 28 core test files passed. The offline archive and loopback UI checks passed with installed Chrome 157.0.8103.51 through Playwright's chrome channel. These are implementing-agent checks with synthetic fixtures. macOS and CI have not been run for this change.
+
+Added coverage follows project-chat attachments with Projects disabled, checks direct and redirected binary HTTP 401 diagnostics, preserves the relevant content failure when later metadata fallback returns 403, and reads the generated recovery HTML from disk. Browser checks verify visible filenames, original chat links, inert markup, absence of direct file links even in older report objects, and no automatic external requests. Existing project resource recovery, explicit metadata denial, rate limits, cancellation and legacy archive tests remain in the core suite.
+
+A separate authorized manual browser comparison used a synthetic Markdown attachment. ChatGPT supplied a download address to the exporter, but the project-content byte request returned HTTP 401 without a redirect. The signed-in browser could preview and download identical bytes. Navigating directly to the content URL outside ChatGPT's interface was rejected as a cross-site file request. The recovery report therefore points users to the original chat or project and displays the filename to find there. This observation establishes the tested attachment's behavior, without establishing prevalence across accounts, file types or generated images.
+
 ## 3.4.0-review.4 and review.5 — 2026-11-05
 
 The targeted Opus AI-assisted review of the `4e77c8f` ZIP confirmed all 28 core test files and checked the rendered offline archive and regeneration on Windows. It identified two issues: a refused binary URL could suppress fallback, and interruption could discard the stored ID/name mappings for project resources. The earlier [repair response](docs/reviews/opus-repair-followup.md) addresses a separate review. [Windows/macOS CI for the reviewed commit](https://github.com/scepbjoern/chatgpt-exporter/actions/runs/41998954580).

@@ -59,7 +59,11 @@ c &= d
   writeFileSync(join(archive, "html/chat #%.html"), conversationToHtml(convo, { local: "../files/Über #%.png" }));
   writeFileSync(join(archive, "gpts", "fixture.md"), "# Synthetic GPT\n\nDescription");
   writeFileSync(join(archive, "projects/Project_stable/html/example.html"), conversationToHtml({ ...convo, title: "Project-only title" }));
-  generateExportIndex(archive, [{ name: "Project Q&A", folderName: "Project_stable" }]);
+  generateExportIndex(archive, [{ name: "Project Q&A", folderName: "Project_stable" }], { report: { missingFiles: [
+    { filename: attack, projectId: "g-p-test", projectName: "Project Q&A", conversationId: "synthetic-browser", conversationTitle: title,
+      directUrl: "https://chatgpt.com/api/library/files/library-id/project-content?file_id=file-one",
+      attempts: [{step:"retrieve file bytes",httpStatus:401,hops:[{host:"chatgpt.com",endpoint:"project-content",httpStatus:401}]}] },
+  ] } });
 
   // Playwright WebKit's offline emulation rejects even a trivial file: page.
   // Block HTTP(S) routes there instead; every attempted non-file request fails this test.
@@ -72,6 +76,13 @@ c &= d
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
+  await page.goto(pathToFileURL(join(archive, "missing-files.html")).href);
+  await page.getByRole("heading", {name:"Download in your browser (1)",exact:true}).waitFor();
+  assert.equal(await page.getByRole("link", {name:attack,exact:true}).count(), 0);
+  assert.equal(await page.getByText(attack, {exact:true}).isVisible(), true);
+  assert.equal(await page.getByRole("link", {name:"Open original chat",exact:true}).getAttribute("href"),
+    "https://chatgpt.com/c/synthetic-browser");
+  assert.equal(await page.locator("script,img,svg").count(), 0);
   await page.goto(pathToFileURL(join(archive, "index.html")).href);
   const groups = page.locator(".sidebar-scroll > details");
   assert.deepEqual(await groups.locator("summary").allTextContents(), ["GPTs (metadata)", "Projects", "Conversations"]);

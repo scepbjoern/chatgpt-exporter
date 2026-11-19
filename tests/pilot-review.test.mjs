@@ -7,6 +7,8 @@ import { downloadFile, downloadSandboxFile } from "../lib/export-files.js";
 import { collectLocalConversations } from "../lib/conversation-storage.js";
 import { markdownToSafeHtml, escapeHtml } from "../lib/safe-markdown.js";
 import { fixture, allFiles } from "./export-fixtures.mjs";
+import { fileRecoveryCategory } from "../lib/file-failure.js";
+import { missingFilesDocuments } from "../lib/missing-files.js";
 
 const privateMarker = "PRIVATE_DIAGNOSTIC_MARKER";
 function transport(reply) {
@@ -21,6 +23,55 @@ function transport(reply) {
   return { calls, client };
 }
 const secretBody = { note: privateMarker, signed_url_for_debug: "https://example.invalid/" + privateMarker };
+test("project content failures link to the original chat and override later fallback classifications in recovery documents", async () => {
+  const f = fixture();
+  try {
+    const chat = f.state.conversations[0];
+    f.state.projects = [{ gizmoId: "g-p-example", name: "Project <unsafe>", conversations: [{ id: chat.conversation_id, title: chat.title }] }];
+    const directUrl = "https://chatgpt.com/api/library/files/library-id/project-content?file_id=file-one&disposition=attachment";
+    const client = createApiClient({ apiBase: "https://chatgpt.com/backend-api", testOrigins: ["https://chatgpt.com"], minIntervalMs: 0,
+      fetch: async value => {
+        const url = new URL(value);
+        if (url.pathname.endsWith("/project-content")) return new Response(null, {status:401});
+        if (url.search) return Response.json({download_url:directUrl});
+        return new Response(null, {status:403});
+      } });
+    const report = await f.run({ projects: false, organizeFolders: true }, { downloadFile: (...args) => downloadFile(...args, client) });
+    const failure = report.missingFiles[0];
+    assert.equal(failure.reason, "access-denied");
+    assert.equal(failure.recoveryCategory, "browser");
+    assert.equal(failure.directUrl, undefined);
+    const html = readFileSync(join(f.root, "archive", "missing-files.html"), "utf8");
+    assert.ok(html.includes("Download in your browser (1)"));
+    assert.ok(html.includes("Project &lt;unsafe&gt;"));
+    assert.ok(html.includes("https://chatgpt.com/c/" + chat.conversation_id));
+    assert.ok(!html.includes("/project-content?"));
+    assert.ok(html.includes("Report # %.txt"));
+    assert.ok(html.includes("find the filename listed below"));
+    assert.ok(!html.includes("Access to this file was denied."));
+    assert.ok(!html.includes("FAKE-TOKEN"));
+    const empty = missingFilesDocuments([]);
+    assert.ok(empty.html.includes("No failed file references"));
+  } finally { f.cleanup(); }
+});
+
+test("recovery documents ignore legacy direct addresses and reject unsafe source identifiers", () => {
+  for (const url of ["javascript:alert(1)", "https://chatgpt.com.evil.invalid/api/library/files/x/project-content",
+    "https://x:secret@chatgpt.com/api/library/files/x/project-content",
+    "https://chatgpt.com/api/library/files/x/project-content?token=PRIVATE",
+    "https://example.blob.core.windows.net/file?sig=PRIVATE"]) {
+    const documents = missingFilesDocuments([{filename:"<script>attack</script>",directUrl:url,conversationId:'"><script>attack</script>',projectId:"javascript:attack"}]);
+    assert.ok(!documents.html.includes(url));
+    assert.ok(!documents.html.includes("<script>attack</script>"));
+    assert.ok(!documents.markdown.includes(url));
+  }
+  assert.equal(fileRecoveryCategory({reason:"not-found"}), "unavailable");
+  assert.equal(fileRecoveryCategory({reason:"unknown",attempts:[
+    {step:"request download address",httpStatus:200,outcome:"no download address"},
+    {step:"request download address",httpStatus:404,outcome:"not-found"},
+  ]}), "unavailable");
+  assert.equal(fileRecoveryCategory({reason:"unknown",attempts:[{httpStatus:503},{httpStatus:404}]}), "unknown");
+});
 test("file reports classify only verified causes and do not repeat private diagnostics", async () => {
   for (const [status, data, reason] of [
     [200, { error_type: "unexpected", ...secretBody }, "missing-address"],
@@ -41,6 +92,7 @@ test("file reports classify only verified causes and do not repeat private diagn
       assert.equal(report.failed, 0);
       assert.equal(report.failedFiles, 1);
       assert.equal(report.missingFiles[0].reason, reason);
+      assert.equal(report.missingFiles[0].attempts[0].httpStatus, status);
       assert.equal(report.errors[0].message, report.missingFiles[0].error);
       const summary = readFileSync(join(f.root, "archive", "missing-files.md"), "utf8");
       assert.ok(summary.includes(report.missingFiles[0].error));
@@ -54,12 +106,78 @@ test("file reports classify only verified causes and do not repeat private diagn
   }
 });
 
+test("conversation-only export downloads a project chat attachment using its project context", async () => {
+  const f = fixture();
+  try {
+    const chat = f.state.conversations[0];
+    f.state.projects = [{ gizmoId: "g-p-example", name: "Project", conversations: [{ id: chat.conversation_id, title: chat.title }] }];
+    const routes = [];
+    const client = {
+      async apiGet(route) {
+        routes.push(route);
+        return { download_url: "https://synthetic.invalid/test" };
+      },
+      async apiDownloadTo(url, token, destination) {
+        writeFileSync(destination, "# Test attachment");
+        return { contentType: "text/plain" };
+      },
+    };
+    const report = await f.run({ projects: false, organizeFolders: true }, { downloadFile: (...args) => downloadFile(...args, client) });
+    assert.deepEqual(routes, ["files/download/file-one?download_intent=true&gizmo_id=g-p-example"]);
+    assert.equal(report.projects, 0);
+    assert.equal(report.failedFiles, 0);
+    assert.equal(report.totalFiles, 1);
+    assert.ok(allFiles(f.root).some(path => path.endsWith(".txt") && readFileSync(path, "utf8") === "# Test attachment"));
+  } finally { f.cleanup(); }
+});
+
+test("binary 401 diagnostics classify direct and redirected responses without recording private URLs", async () => {
+  const origin = "https://chatgpt.com";
+  const storage = "https://private-container.blob.core.windows.net";
+  for (const redirected of [false, true]) {
+    const client = createApiClient({ apiBase: origin + "/backend-api", testOrigins: [origin, storage], minIntervalMs: 0,
+      fetch: async value => {
+        const url = new URL(value);
+        if (url.searchParams.has("gizmo_id")) return Response.json({ download_url: origin + "/api/library/files/PRIVATE/project-content?secret=PRIVATE" });
+        if (url.pathname.endsWith("/project-content") && redirected) return Response.redirect(storage + "/PRIVATE?secret=PRIVATE", 302);
+        return new Response(null, { status: url.pathname.startsWith("/backend-api/") ? 403 : 401 });
+      } });
+    await assert.rejects(downloadFile("file-a", "FAKE", "test.md", null, "project", "chat", null, client), error => {
+      const bytes = error.attempts.find(attempt => attempt.step === "retrieve file bytes");
+      const expected = [{ host: "chatgpt.com", endpoint: "project-content", httpStatus: redirected ? 302 : 401 }];
+      if (redirected) expected.push({ host: "Azure Blob Storage", endpoint: "file host", httpStatus: 401 });
+      assert.deepEqual(bytes.hops, expected);
+      assert.equal(bytes.httpStatus, 401);
+      assert.ok(!JSON.stringify(error.attempts).includes("PRIVATE"));
+      return true;
+    });
+  }
+});
+
 test("scope fallback can succeed, conflicting failed routes cannot prove a cause", async () => {
   const { client } = transport(i => [[200, {}], [200, { download_url: "https://synthetic.invalid/bytes" }], [200, "ok"]][i-1]);
   const file = await downloadFile("file-a", "FAKE", "data.txt", null, null, "chat", null, client);
   assert.equal(file.buffer.toString(), '"ok"');
   const other = transport(i => i === 1 ? [500, {}] : [404, {}]);
   await assert.rejects(downloadFile("file-a", "FAKE", "data.txt", null, null, "chat", null, other.client), {reason:"unknown"});
+});
+
+test("preview diagnostics discard the preview address and report the download decision", async () => {
+  const { client, calls } = transport(i => i === 1
+    ? [200, { download_url: "https://synthetic.invalid/preview-only" }]
+    : [200, { error_message: "Not allowed to download files." }]);
+  await assert.rejects(downloadFile("file-a", "FAKE", "test.md", null, "project", "chat", null, client, true), error => {
+    assert.equal(error.reason, "access-denied");
+    assert.deepEqual(error.attempts.map(a => [a.route, a.httpStatus, a.outcome]), [
+      ["project-chat preview download_intent=false", 200, "address received"],
+      ["project-chat download_intent=true", 200, "no download address"],
+    ]);
+    return true;
+  });
+  assert.deepEqual(calls, ["/api/files/download/file-a", "/api/files/download/file-a"]);
+  const denied = transport(() => [403, {}]);
+  await assert.rejects(downloadFile("file-a", "FAKE", "test.md", null, "project", "chat", null, denied.client, true), { reason: "access-denied" });
+  assert.equal(denied.calls.length, 1);
 });
 
 test("sandbox diagnostics discard raw HTTP bodies and metadata, including binary failures", async () => {

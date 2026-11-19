@@ -65,7 +65,9 @@ An old unbound export is deliberately not adopted as the same account automatica
 
 ## Completion, recovery and ZIP
 
-For new organized exports, open `archive/index.md` or `archive/index.html`. The Markdown index is always created, including for JSON-only exports; the searchable HTML index is selectable independently of chat HTML. It offers creation-date filtering, date/title sorting and links to existing formats. Full titles remain in the index and raw JSON. Project summaries list referenced conversations/resources and distinguish local availability. `missing-files.md` lists unavailable references with their known chat/project context.
+For new organized exports, open `archive/index.md` or `archive/index.html`. The Markdown index is always created, including for JSON-only exports; the searchable HTML index is selectable independently of chat HTML. It offers creation-date filtering, date/title sorting and links to existing formats. Full titles remain in the index and raw JSON. Project summaries list referenced conversations/resources and distinguish local availability.
+
+`missing-files.html` and `missing-files.md` group the latest run's failed references by recovery guidance, project and conversation. A file-content HTTP 401 at ChatGPT's project-content endpoint takes precedence over later fallback errors. Other entries distinguish possible unavailability from unresolved or temporary problems. Each entry displays the filename and links to its original chat or project where known. Sign in to the matching account and workspace, find the named attachment and download it through ChatGPT. Manually saved files are not automatically imported into the exporter's file map.
 
 Read the final on-screen status and the matching `_work/logs/export-report-<runId>.json` or `regeneration-report-<runId>.json`. A partial status is not completion, even if some conversations succeeded. `archive-operation.json` marks an operation in progress or its final status. A stopped process can leave a stale manifest; rerun to recover before treating it as current.
 

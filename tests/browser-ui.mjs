@@ -84,7 +84,8 @@ try {
   await page.locator('#file-result').filter({ hasText: 'Missing.pdf' }).waitFor();
   assert.equal(await page.locator('#result').getAttribute('class'), 'result success');
   assert.equal(await page.locator('#file-result').getAttribute('class'), 'result warning');
-  assert.match(await page.locator('#file-result').textContent(), /Missing\.pdf — Synthetic project — File not found when requested\./);
+  assert.match(await page.locator('#file-result').textContent(), /Missing\.pdf — Synthetic project — Cause unresolved or temporary/);
+  assert.match(await page.locator('#file-result').textContent(), /missing-files\.html/);
   assert.equal(await page.locator('#issue-result').isVisible(), false);
   assert.match(await page.locator('#result').textContent(), /9 conversations/);
   if (process.env.CGE_SCREENSHOT_DIR) { await page.locator('#file-result').scrollIntoViewIfNeeded(); await page.mouse.move(0,0); await page.evaluate(() => document.activeElement?.blur()); await page.screenshot({path:join(process.env.CGE_SCREENSHOT_DIR,'review1-result.png')}); }
