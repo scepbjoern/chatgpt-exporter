@@ -157,6 +157,34 @@ test("map repair failures keep a backup hint across retries and filtering until 
   }
 });
 
+test("a missing map beside earlier attachment files also keeps the backup hint", async () => {
+  for (const organized of [false, true]) {
+    const f = fixture();
+    try {
+      await f.run({ organizeFolders: organized });
+      const archive = organized ? join(f.root, "archive") : f.root;
+      unlinkSync(allFiles(archive).find(p => p.endsWith(".file-map.json")));
+      f.state.fileError = new FileFailure("access-denied");
+      const repair = await f.run({ organizeFolders: organized });
+      assert.equal(repair.status, "partial");
+      assert.equal(repair.missingFiles[0].retained, false);
+      assert.equal(repair.missingFiles[0].backupMayContainFiles, true);
+      const backups = allFiles(join(f.root, ...(organized ? ["_work"] : []), "superseded"));
+      assert.ok(backups.some(p => readFileSync(p, "utf8") === "synthetic original bytes"));
+      const retry = await f.run({ organizeFolders: organized, dateFrom: "2030-01-01" });
+      assert.equal(retry.recoveryFiles[0].backupMayContainFiles, true);
+      assert.match(readFileSync(join(archive, "missing-files.md"), "utf8"), /publication backups/);
+    } finally { f.cleanup(); }
+  }
+  // A new chat without any earlier attachment folder never receives the hint.
+  const fresh = fixture();
+  try {
+    fresh.state.fileError = new FileFailure("access-denied");
+    const first = await fresh.run({ organizeFolders: true });
+    assert.equal(first.missingFiles[0].backupMayContainFiles, undefined);
+  } finally { fresh.cleanup(); }
+});
+
 test("recovery backlog survives filtering and early stops, then clears after success", async () => {
   const f = fixture();
   try {

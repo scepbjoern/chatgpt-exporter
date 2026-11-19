@@ -1,10 +1,14 @@
 # Test record
 
+## Pilot 3.4.0-review.6 — 2026-11-19
+
+The targeted Claude review of 6861e85 confirmed G1/G2 and fresh fixture inventories, and supplied a tested patch for the missing-map variant of the backup hint (H1). That three-file patch is incorporated without changes to its implementation or regression test. The implementing agent reran all 29 core files on Windows / Node.js 24.11.0, including 15 recovery-report cases, plus installed Chrome offline/UI and the native Windows ZIP/deep-path check: passed. Final hosted Windows/macOS results and ZIP verification are recorded for the exact package commit in the delivery record; use the matching GitHub Actions run, not earlier commits, as platform evidence.
+
 ## Follow-up corrections G1–G3 — 2026-11-19
 
 Resume and recovery collection now share the collection-shape check in `lib/file-map.js`. Invalid maps produce incomplete coverage even outside the current selection. The export-time HTML refresh skips those maps, preserving the existing page byte-for-byte until an actual selected export repairs the map. Regression variants include null, arrays, scalars, missing or wrongly typed `files`, wrongly typed `failed` and invalid JSON. Missing maps retain the previous behavior; local view regeneration remains a separate explicit operation.
 
-Failed attachment downloads after a map rebuild carry a persistent `backupMayContainFiles` hint in the map and report. Both recovery documents and the UI explain that earlier unassigned bytes may be in publication backups, without claiming a verified copy of that particular file. Tests cover legacy and organized layouts, actual retained backup bytes, repeated failures, filtering and removal of the hint after successful recovery.
+Failed attachment downloads after a map rebuild carry a persistent `backupMayContainFiles` hint in the map and report. The same applies when the map is missing but the earlier attachment folder still contains files; a new chat without an earlier folder does not receive the hint. Both recovery documents and the UI explain that earlier unassigned bytes may be in publication backups, without claiming a verified copy of that particular file. Tests cover legacy and organized layouts, actual retained backup bytes, repeated failures, filtering and removal of the hint after successful recovery.
 
 The synthetic project inventory returns a structured clone for each request. Persistence tests now assert that the original fixture inventory is not modified and reuse it in a separate clean archive, avoiding false results from mutated in-memory objects. Platform results for the corrective commit are recorded in GitHub Actions and the targeted review request.
 

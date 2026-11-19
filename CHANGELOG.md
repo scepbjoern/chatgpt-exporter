@@ -1,5 +1,13 @@
 # Changes
 
+## 3.4.0-review.6 — 2026-11-19
+
+- Group unresolved file references by recovery guidance, project and chat, including earlier failures outside the latest selection. Link to the original ChatGPT location, not session-bound file addresses. Project-content authentication failures may still require manual download in ChatGPT.
+- Preserve manual downloads in a separate folder and explain integrity checks. Keep sanitized request-step diagnostics without tokens, cookies or signed URLs.
+- Preserve existing HTML when attachment maps are damaged, rebuild selected maps safely, and report incomplete historical coverage after rebuilding damaged project metadata. Explain possible publication backups when a repair download fails, including missing maps beside older attachment files.
+- Fix parentheses in local Markdown link targets, retain successful unchecked project resources and avoid redundant attachment backups on unchanged upgrades.
+- Apply the targeted Claude review corrections and its tested missing-map hint patch. Node.js 24 remains a separate installation; no bundled runtime is included.
+
 ## 3.4.0-review.3 through review.5 — 2026-11-05
 
 - Show fixed, evidence-based causes for missing files and retain the originating chat or project. Distinguish a refusal from the metadata service from a refused binary link, which may have another working download route.
