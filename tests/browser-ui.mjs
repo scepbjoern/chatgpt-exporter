@@ -14,6 +14,11 @@ const { server, key } = createExporterServer({
   runExport: async (token, output, concurrency, zip, keepAwake, options, send) => {
     receivedToken = token;
     exports++;
+    if (exports > 3) {
+      send("done", JSON.stringify({ total: 0, failed: 0, status: "partial", output,
+        errors: [{ category: "recovery-metadata", id: "projects/" + marker + "/project-raw.json", message: "Local metadata could not be read. Back up the complete output folder, then rerun without filters." }] }));
+      return;
+    }
     if (exports > 2) {
       send("done", JSON.stringify({ total: 0, succeeded: 0, failed: 0, totalFiles: 0, failedFiles: 0, missingFiles: [],
         recoveryFiles: [{ filename: "Earlier.pdf" }], errors: [], status: "complete-within-requested-scope", output }));
@@ -100,6 +105,11 @@ try {
   await page.locator('#file-result').filter({ hasText: '1 unresolved file references' }).waitFor();
   assert.equal(await page.locator('#file-result').isVisible(), true);
   assert.equal(await page.locator('#file-result').getAttribute('class'), 'result warning');
+  await page.locator('#token-input').fill(JSON.stringify({ accessToken: 'SYNTHETIC_METADATA', user: { id: 'synthetic-user' } }));
+  await page.locator('#export-btn').click();
+  await page.locator('#issue-result').filter({ hasText: 'Local metadata: projects/' + marker + '/project-raw.json' }).waitFor();
+  assert.match(await page.locator('#issue-result').textContent(), /Back up the complete output folder/);
+  assert.equal(await page.locator('#issue-result img').count(), 0);
   assert.equal(await page.evaluate(() => window.ATTACK), undefined);
   assert.deepEqual(requests.filter(url => !url.startsWith(origin + "/")), []);
   assert.deepEqual(errors, []);

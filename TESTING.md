@@ -1,5 +1,15 @@
 # Test record
 
+## Follow-up corrections F1–F4 — 2026-11-19
+
+The remaining Markdown path encoders in the archive index and project summaries now encode parentheses. The regression resolves parsed Markdown links for conversations, projects, resources and GPT metadata against actual files, and checks the project resource's generated HTML link. The inherited HTML restriction on project-summary conversation links (O2) is separate and unchanged.
+
+The runner rebuilds malformed project records from the current inventory, preserving the original metadata through publication backups and leaving unmapped resource files in place. Because previous references cannot be reconstructed from filenames, it persists `recoveryMetadataIncomplete` and reports incomplete coverage in subsequent exports, including filtered runs. A new empty output folder can hold a separate current snapshot; it does not replace historical data. Tests verify repeated recovery, preserved bytes, absence of phantom resources and parser snippets, and the documented separate-folder procedure. Local view regeneration leaves the recovery list and marker intact; its own status describes view generation only.
+
+Non-object conversation maps (including null, arrays and scalar values) fall back to rebuilding from conversation references. Tests confirm publication backups and a subsequent local resume without redownloading unchanged bytes. The UI displays the metadata path as literal text alongside recovery instructions; a browser test checks markup in that path remains inert.
+
+Implementing-agent checks on Windows / Node.js 24.11.0: all 29 core test files passed, with 13 recovery-report cases including multiple malformed-data variants. Installed Chrome 157.0.8103.51 passed offline and UI checks. The Chromium native Windows ZIP/deep-path check passed (longest restored path 250 characters). An initial UI-test attempt waited for the fourth synthetic response after sending only three exports; the test sequence was corrected and rerun successfully. The production UI required no further correction. Hosted Windows/macOS results must be matched to the exact corrective commit in GitHub Actions; installed Safari and managed-device pilot use remain separate checks.
+
 ## Follow-up corrections N1–N3 and O1 — local development, 2026-11-19
 
 Recovery collection now catches malformed individual conversation maps and project metadata, records fixed recovery-metadata issues and marks coverage incomplete while generating the remaining index and list. Tests include invalid JSON, invalid collection shapes and malformed diagnostics. Project resources with a verified local file and no recorded failure are excluded from the backlog when unchecked or absent from the latest inventory. Actual failures and missing local copies remain visible.

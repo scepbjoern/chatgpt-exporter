@@ -876,7 +876,8 @@
     if (stopped) notes.push(`${remaining} unprocessed conversation(s) remain, plus ${d.failed || 0} failed. Start again later in the same folder.`);
     if (d.rateLimitRetryAfter || d.retryAfter) notes.push('Server Retry-After (seconds or date): ' + (d.rateLimitRetryAfter || d.retryAfter));
     if (d.failed) notes.push(`${d.failed} conversation(s) failed. ` + (d.failedTitles || []).join(', '));
-    notes.push(...otherIssues.map(e => typeof e === 'string' ? e : e.message || 'Export issue'));
+    notes.push(...otherIssues.map(e => typeof e === 'string' ? e :
+      (e.category === 'recovery-metadata' && e.id ? 'Local metadata: ' + e.id + ' — ' : '') + (e.message || 'Export issue')));
     if (!notes.length && ['partial','warning','failed'].includes(d.status) && !d.failedFiles) notes.push('Export incomplete. Review the saved report.');
     issueBox.className = 'result ' + (serious ? 'error' : 'warning') + (notes.length ? '' : ' hidden');
     issueBox.style.whiteSpace = 'pre-wrap'; issueBox.textContent = notes.join('\n');

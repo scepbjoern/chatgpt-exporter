@@ -63,3 +63,27 @@ files listed in the project resource inventory. The offline conversation view
 shows common inline and multiline TeX formulas as readable source with their
 delimiters and line breaks. The original message remains in the conversation JSON.
 Outside a matched TeX expression, the HTML viewer applies ordinary Markdown escaping. For example, a backslash before a literal brace may only be visible in the source Markdown and JSON.
+
+## Damaged local metadata
+
+A **Local metadata** warning names a file relative to the readable archive
+(`archive/` for organized exports). The same path is in `errors[].id` for the
+`recovery-metadata` entry in the saved export report. The recovery list may be
+incomplete until this is resolved.
+
+1. Stop the export and copy the **complete output folder** as a backup.
+2. In the original output folder, select **Conversations** and **Projects**, remove
+   date and project filters, and start the export again. Invalid conversation maps
+   are rebuilt from the conversation references, and attachments are retried.
+   Previous bytes remain in the working directory's `superseded/` backups.
+3. A damaged `project-raw.json` is rebuilt from the current inventory. Existing
+   resource files are kept, and the damaged metadata is backed up. However, earlier
+   references missing from today's inventory cannot be reconstructed reliably.
+   The archive therefore keeps a coverage warning and partial status across retries.
+4. If this project warning remains, keep the complete old archive and choose a
+   **new empty output folder** for a separate current export. Check its report and
+   missing-file list. It is a current snapshot, not a replacement for lost history.
+
+Do not delete metadata or backups to suppress a warning. **Regenerate local views**
+does not repair these mappings and does not clear a project coverage warning in
+the recovery list. Its separate success status describes local view generation only.

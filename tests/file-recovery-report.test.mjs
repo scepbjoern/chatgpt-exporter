@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { fixture, allFiles, conversation } from "./export-fixtures.mjs";
 import { FileFailure, fileRecoveryCategory } from "../lib/file-failure.js";
 import { downloadFile } from "../lib/export-files.js";
@@ -10,6 +10,114 @@ import { missingFilesDocuments } from "../lib/missing-files.js";
 import { markdownToSafeHtml } from "../lib/safe-markdown.js";
 import { regenerateMarkdown } from "../lib/markdown-regeneration.js";
 import { spawnSync } from "node:child_process";
+import { lexer } from "../lib/vendor/marked.esm.js";
+
+test("index and project Markdown links with parentheses resolve to their actual files", async () => {
+  const f = fixture({ shortRoot: true });
+  const links = (tokens, result = []) => {
+    for (const token of tokens || []) {
+      if (token.type === "link") result.push(token.href);
+      links(token.tokens, result); links(token.items, result);
+      for (const cell of [...(token.header || []), ...(token.rows || []).flat()]) links(cell.tokens, result);
+    }
+    return result;
+  };
+  try {
+    f.state.conversations = ["Smile :)", "Open (", "Balanced (ok)", "Close ) 100% #1 ("].map((title, i) => conversation(`chat-${i}`, title));
+    f.state.projects = [{ gizmoId: "g-p-smile", name: "Smile :) # %", gizmo: { display: { name: "Smile :) # %" } },
+      files: [{ id: "file-resource", name: "Chart :) #%.png" }], conversations: [{ id: "chat-0", title: "Smile :)" }] }];
+    f.state.gpts = [{ id: "g-smile", display: { name: "GPT :) # %" } }];
+    const result = await f.run({ organizeFolders: true, gpts: true }, {
+      downloadFile: async (_id, _token, name, _debug, _project, _chat, dest) => { writeFileSync(dest, "original bytes"); return { filename: name }; },
+    });
+    assert.equal(result.status, "complete-within-requested-scope");
+    const docs = allFiles(join(f.root, "archive")).filter(path => /[\\/](index|project-info)\.md$/.test(path));
+    assert.equal(docs.length, 2);
+    let count = 0;
+    for (const doc of docs) for (const href of links(lexer(readFileSync(doc, "utf8")))) {
+      assert.ok(existsSync(resolve(dirname(doc), decodeURIComponent(href))), `${doc}: ${href}`);
+      count++;
+    }
+    assert.ok(count >= 18, `Checked ${count} links, including GPT, project, conversation and resource links`);
+    const htmlPath = allFiles(join(f.root, "archive")).find(path => path.endsWith("project-info.html"));
+    const html = readFileSync(htmlPath, "utf8");
+    const resourceHref = html.match(/href="(resources\/[^"<>]+)"/)?.[1];
+    assert.ok(resourceHref, "project resource remains a clickable HTML link");
+    assert.ok(existsSync(resolve(dirname(htmlPath), decodeURIComponent(resourceHref))));
+    assert.doesNotMatch(html, /<\/span>%20-/); // No truncated Markdown path after the inherited chat-link restriction.
+  } finally { f.cleanup(); }
+});
+
+test("damaged project metadata rebuilds current inventory, preserves bytes and retains historical coverage warning", async () => {
+  for (const contents of ["PRIVATE_PARSE_SECRET", "null", "[null]", '{"resources":"broken"}', '{"resources":[null]}', '{"resources":[{"id":"file-a","localName":7}]}']) {
+    const f = fixture({ shortRoot: true });
+    const fresh = fixture({ shortRoot: true });
+    try {
+      f.state.conversations = [];
+      f.state.projects = [{ gizmoId: "g-p-project", name: "Project", gizmo: { display: { name: "Project" } },
+        files: [{ id: "file-a", name: "A.pdf" }, { id: "file-b", name: "B.pdf" }], conversations: [] }];
+      await f.run({ organizeFolders: true });
+      const rawPath = allFiles(join(f.root, "archive")).find(path => path.endsWith("project-raw.json"));
+      const before = JSON.parse(readFileSync(rawPath, "utf8"));
+      const oldResource = join(dirname(rawPath), "resources", before.resources.find(r => r.id === "file-b").localName);
+      const bytes = readFileSync(oldResource);
+      writeFileSync(rawPath, contents);
+      f.state.projects[0].files = [{ id: "file-a", name: "A.pdf" }];
+      let downloads = 0;
+      const result = await f.run({ organizeFolders: true }, { downloadFile: async (...args) => { downloads++; return f.deps.downloadFile(...args); } });
+      assert.equal(downloads, 1);
+      assert.equal(result.projects, 1);
+      assert.equal(result.recoveryCoverageComplete, false);
+      assert.equal(result.status, "partial");
+      assert.equal(result.recoveryFiles.length, 0, "no phantom unnamed resource");
+      assert.equal(result.errors.some(e => e.category === "project"), false);
+      assert.ok(result.errors.some(e => e.category === "recovery-metadata" && e.id.endsWith("project-raw.json")));
+      assert.doesNotMatch(JSON.stringify(result), /PRIVATE_PARSE_SECRET/);
+      assert.deepEqual(readFileSync(oldResource), bytes, "unmapped old resource stays in readable archive");
+      assert.ok(allFiles(join(f.root, "_work", "superseded")).some(path => readFileSync(path, "utf8") === contents), "damaged raw bytes preserved in publication backup");
+      assert.equal(JSON.parse(readFileSync(rawPath, "utf8")).resources.length, 1);
+      // Forget in-memory project mutations: the warning must be durable on disk.
+      delete f.state.projects[0].recoveryMetadataIncomplete;
+      const repeat = await f.run({ organizeFolders: true });
+      assert.equal(repeat.projects, 1);
+      assert.equal(repeat.recoveryCoverageComplete, false);
+      const filtered = await f.run({ organizeFolders: true, projects: false, conversations: false });
+      assert.equal(filtered.recoveryCoverageComplete, false);
+      const recoveryList = readFileSync(join(f.root, "archive", "missing-files.md"), "utf8");
+      await regenerateMarkdown(f.root, {}, () => {});
+      assert.equal(readFileSync(join(f.root, "archive", "missing-files.md"), "utf8"), recoveryList);
+      assert.equal(JSON.parse(readFileSync(rawPath, "utf8")).recoveryMetadataIncomplete, true);
+      // Documented alternative: keep this archive and export a separate current snapshot.
+      fresh.state.conversations = [];
+      fresh.state.projects = [{ gizmoId: "g-p-project", name: "Project", gizmo: { display: { name: "Project" } },
+        files: [{ id: "file-a", name: "A.pdf" }], conversations: [] }];
+      const snapshot = await fresh.run({ organizeFolders: true });
+      assert.equal(snapshot.status, "complete-within-requested-scope");
+      assert.equal(snapshot.recoveryCoverageComplete, true);
+      assert.deepEqual(readFileSync(oldResource), bytes);
+    } finally { f.cleanup(); fresh.cleanup(); }
+  }
+});
+
+test("non-object conversation maps rebuild and preserve the previous attachment folder", async () => {
+  for (const contents of ["null", "[]", '"broken"', "7", "false", '{"files":null}', '{"files":{},"failed":[]}']) {
+    const f = fixture();
+    try {
+      await f.run({ organizeFolders: true });
+      const path = allFiles(join(f.root, "archive")).find(p => p.endsWith(".file-map.json"));
+      writeFileSync(path, contents);
+      const filtered = await f.run({ organizeFolders: true, dateFrom: "2030-01-01" });
+      assert.equal(filtered.errors.some(e => e.category === "html"), false);
+      const result = await f.run({ organizeFolders: true });
+      assert.equal(result.failed, 0);
+      assert.equal(result.status, "complete-within-requested-scope");
+      assert.ok(JSON.parse(readFileSync(path, "utf8")).files["file-one"]);
+      assert.ok(allFiles(join(f.root, "_work", "superseded")).some(p => p.endsWith(".file-map.json") && readFileSync(p, "utf8") === contents));
+      const repeated = await f.run({ organizeFolders: true }, { downloadFile: async () => { throw new Error("unchanged repaired map must resume locally"); } });
+      assert.equal(repeated.status, "complete-within-requested-scope");
+    } finally { f.cleanup(); }
+  }
+});
 
 test("recovery backlog survives filtering and early stops, then clears after success", async () => {
   const f = fixture();
